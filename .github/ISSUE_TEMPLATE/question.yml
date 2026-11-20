@@ -1,0 +1,54 @@
+name: 使用提问
+description: 使用中的疑问、配置求助（不是 bug）
+title: "[Question] "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **先自查**：README 的「使用」「数据位置」「明暗主题」「更新检测」小节，以及 `docs/` 下的架构与引擎说明。
+        提问前请确认这不是环境问题（例如代理不通、镜像不可用）。
+
+  - type: textarea
+    id: question
+    attributes:
+      label: 你的问题
+      description: 一句话说清你要完成什么、卡在哪
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: 已经尝试过
+      description: 改过哪些设置、换过哪个镜像、看过哪段日志
+    validations:
+      required: false
+
+  - type: input
+    id: app-version
+    attributes:
+      label: WRT-UI 版本
+      placeholder: "1.0.0"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: engine
+    attributes:
+      label: 构建引擎
+      options:
+        - 内置 VM 引擎
+        - WSL Containers
+        - Docker
+        - 还没到构建这一步
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志
+      render: shell
+    validations:
+      required: false

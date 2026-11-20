@@ -71,7 +71,9 @@ MUI 组件的外观集中在 `src/theme.ts` 覆写；页面里不再写死颜色
 
 ## 从源码构建
 
-需要 Rust、Node 24+（Windows 默认走 GNU 工具链，见下）。
+需要 Rust、Node 24+（Windows 默认走 GNU 工具链，见下）。常用命令都收在 `Makefile` 里：`make help` 列出全部目标，
+`make check` 跑类型检查 + Rust 格式 + clippy + 测试，`make bundle` 产出 NSIS 安装包；
+源码在中文路径下无法直接编译时用 `make mirror` 镜像到 ASCII 目录（`D:/wrtui-build`）再构建。
 
 ```bash
 npm ci
