@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import type { Theme } from "@mui/material/styles";
 import { createBrutalTheme, type ThemeMode } from "./theme";
+import { api, isDesktop } from "./api";
 export type { ThemeMode };
 
 const STORAGE_KEY = "wrt-ui.theme";
@@ -20,6 +21,8 @@ export function detectThemeMode(): ThemeMode {
 type ContextValue = {
   mode: ThemeMode;
   setMode: (mode: ThemeMode) => void;
+  /** 从后端设置回填，不写回磁盘。 */
+  hydrate: (mode: ThemeMode) => void;
   toggle: () => void;
   theme: Theme;
 };
@@ -29,6 +32,8 @@ const ThemeModeContext = createContext<ContextValue | null>(null);
 export function ThemeModeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>(() => detectThemeMode());
 
+  const hydrate = useCallback((next: ThemeMode) => setModeState(next), []);
+
   const setMode = useCallback((next: ThemeMode) => {
     setModeState(next);
     try {
@@ -36,6 +41,8 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
     } catch {
       // 存不下也不影响本次切换。
     }
+    // settings.json 才是权威来源，localStorage 只负责首帧不出闪。
+    if (isDesktop()) void api.savePrefs({ theme: next }).catch(() => {});
   }, []);
 
   const toggle = useCallback(() => setMode(mode === "dark" ? "light" : "dark"), [mode, setMode]);
@@ -45,7 +52,10 @@ export function ThemeModeProvider({ children }: { children: ReactNode }) {
   }, [mode]);
 
   const theme = useMemo(() => createBrutalTheme(mode), [mode]);
-  const value = useMemo(() => ({ mode, setMode, toggle, theme }), [mode, setMode, toggle, theme]);
+  const value = useMemo(
+    () => ({ mode, setMode, hydrate, toggle, theme }),
+    [mode, setMode, hydrate, toggle, theme],
+  );
 
   return <ThemeModeContext.Provider value={value}>{children}</ThemeModeContext.Provider>;
 }

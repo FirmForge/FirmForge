@@ -181,6 +181,7 @@ pub fn run() {
             commands::save_mirrors,
             commands::save_registry,
             commands::save_proxy,
+            commands::save_prefs,
             commands::switch_ecosystem,
             commands::create_job,
             commands::list_jobs,

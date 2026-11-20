@@ -44,8 +44,8 @@ const NAV: { key: Page; labelKey: MessageKey; descKey: MessageKey; icon: typeof 
 ];
 
 export default function App() {
-  const { t, lang, setLang } = useI18n();
-  const { mode, setMode } = useThemeMode();
+  const { t, lang, setLang, hydrateLang } = useI18n();
+  const { mode, setMode, hydrate } = useThemeMode();
   const update = useUpdateCheck();
   const [page, setPage] = useState<Page>("build");
   const [visited, setVisited] = useState<Set<Page>>(() => new Set<Page>(["build"]));
@@ -76,6 +76,9 @@ export default function App() {
     try {
       const loaded = await api.settings();
       setSettings(loaded);
+      // settings.json 记录上次的主题与语言；localStorage 只用于首帧。
+      if (loaded.theme === "light" || loaded.theme === "dark") hydrate(loaded.theme);
+      if (loaded.language) hydrateLang(loaded.language as Lang);
       const environment = await api.environment();
       setEnv(environment);
     } catch (e) {

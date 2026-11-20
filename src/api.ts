@@ -65,6 +65,8 @@ export const api = {
     call<Settings>("save_mirrors", { mirrors }),
   saveRegistry: (registry: string) => call<Settings>("save_registry", { registry }),
   saveProxy: (proxy: string) => call<Settings>("save_proxy", { proxy }),
+  savePrefs: (prefs: { theme?: string; language?: string }) =>
+    call<Settings>("save_prefs", prefs),
   switchEcosystem: (ecosystem: Settings["ecosystem"]) =>
     call<Settings>("switch_ecosystem", { ecosystem }),
 

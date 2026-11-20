@@ -159,7 +159,17 @@ pub struct Settings {
     pub registry: String,
     #[serde(default)]
     pub proxy: String,
+    /// 界面主题：light / dark。与语言一起保存在 settings.json，重启后由前端回填。
+    #[serde(default = "default_theme")]
+    pub theme: String,
+    /// 界面语言代码；空表示跟随系统。
+    #[serde(default)]
+    pub language: String,
     pub data_dir: String,
+}
+
+fn default_theme() -> String {
+    "light".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -10,6 +10,7 @@ import { ko } from "./ko";
 import { ru } from "./ru";
 import { zhHans, type Messages } from "./zh-Hans";
 import { zhHant } from "./zh-Hant";
+import { api, isDesktop } from "../api";
 
 export type { Messages };
 export type Lang = "zh-Hans" | "zh-Hant" | "en" | "ja" | "ko" | "de" | "fr" | "es" | "it" | "ru";
@@ -93,6 +94,8 @@ export function engineLabel(name: string, t: (key: MessageKey) => string): strin
 type ContextValue = {
   lang: Lang;
   setLang: (lang: Lang) => void;
+  /** 从后端设置回填，不写回磁盘。 */
+  hydrateLang: (lang: Lang) => void;
   t: (key: MessageKey, vars?: Vars) => string;
 };
 
@@ -101,6 +104,8 @@ const I18nContext = createContext<ContextValue | null>(null);
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => detectLang());
 
+  const hydrateLang = useCallback((next: Lang) => setLangState(next), []);
+
   const setLang = useCallback((next: Lang) => {
     setLangState(next);
     try {
@@ -108,6 +113,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     } catch {
       // 存不下也不影响本次切换。
     }
+    // settings.json 才是权威来源，localStorage 只负责首帧不出闪。
+    if (isDesktop()) void api.savePrefs({ language: next }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -116,7 +123,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const t = useCallback((key: MessageKey, vars?: Vars) => translate(lang, key, vars), [lang]);
 
-  const value = useMemo(() => ({ lang, setLang, t }), [lang, setLang, t]);
+  const value = useMemo(
+    () => ({ lang, setLang, hydrateLang, t }),
+    [lang, setLang, hydrateLang, t],
+  );
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 

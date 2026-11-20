@@ -169,6 +169,49 @@ pub async fn save_proxy(state: State<'_, AppState>, proxy: String) -> Result<Set
         .await
 }
 
+/// 保存界面偏好（主题、语言）。只改这两个字段，避免覆盖其他设置。
+#[tauri::command(rename_all = "snake_case")]
+pub async fn save_prefs(
+    state: State<'_, AppState>,
+    theme: Option<String>,
+    language: Option<String>,
+) -> Result<Settings, AppError> {
+    let theme = match theme {
+        Some(value) => {
+            let value = value.trim().to_string();
+            if value != "light" && value != "dark" {
+                return Err(AppError::Invalid("未知的主题".into()));
+            }
+            Some(value)
+        }
+        None => None,
+    };
+    let language = match language {
+        Some(value) => {
+            let value = value.trim().to_string();
+            const LANGS: [&str; 10] = [
+                "zh-Hans", "zh-Hant", "en", "ja", "ko", "de", "fr", "es", "it", "ru",
+            ];
+            if !value.is_empty() && !LANGS.contains(&value.as_str()) {
+                return Err(AppError::Invalid("未知的语言".into()));
+            }
+            Some(value)
+        }
+        None => None,
+    };
+    state
+        .update_settings(|s| {
+            if let Some(theme) = theme.clone() {
+                s.theme = theme;
+            }
+            if let Some(language) = language.clone() {
+                s.language = language;
+            }
+            Ok(())
+        })
+        .await
+}
+
 #[tauri::command(rename_all = "snake_case")]
 pub async fn switch_ecosystem(
     state: State<'_, AppState>,

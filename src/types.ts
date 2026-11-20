@@ -73,6 +73,8 @@ export type Settings = {
   mirrors: MirrorSource[];
   registry: string;
   proxy: string;
+  theme: string;
+  language: string;
   data_dir: string;
 };
 

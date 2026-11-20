@@ -87,6 +87,8 @@ impl Store {
             mirrors: default_mirrors(default_ecosystem()),
             registry: String::new(),
             proxy: String::new(),
+            theme: "light".to_string(),
+            language: String::new(),
             data_dir: self.display_root(),
         };
         self.save_settings(&settings)?;
@@ -241,8 +243,23 @@ mod tests {
         assert!(s.data_dir.contains("wrtui-store-settings"));
         let mut changed = s.clone();
         changed.proxy = "socks5://127.0.0.1:1080".into();
+        changed.theme = "dark".into();
+        changed.language = "ko".into();
         store.save_settings(&changed).unwrap();
-        assert_eq!(store.load_settings().unwrap().proxy, changed.proxy);
+        let loaded = store.load_settings().unwrap();
+        assert_eq!(loaded.proxy, changed.proxy);
+        // 主题与语言必须跟着 settings.json 落盘，重启后由前端回填。
+        assert_eq!(loaded.theme, "dark");
+        assert_eq!(loaded.language, "ko");
+    }
+
+    #[test]
+    fn settings_without_theme_falls_back_to_light() {
+        // 旧版本 settings.json 没有 theme/language 字段，读取时必须给出默认值。
+        let parsed: Settings =
+            serde_json::from_str(r#"{"ecosystem":"openwrt","mirrors":[],"data_dir":"x"}"#).unwrap();
+        assert_eq!(parsed.theme, "light");
+        assert!(parsed.language.is_empty());
     }
 
     #[test]
