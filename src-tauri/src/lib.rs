@@ -161,6 +161,8 @@ pub fn run() {
     };
 
     let result = tauri::Builder::default()
+        // Tauri 3：webview 运行时改为显式选择，不选会在启动时报 RuntimeNotConfigured
+        .runtime(tauri_runtime_wry::Wry::default())
         // 单实例必须最先注册：重复启动时唤起已有窗口后自己退出。
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             focus_main(app);

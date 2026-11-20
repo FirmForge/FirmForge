@@ -1,6 +1,6 @@
 # WRT-UI
 
-OpenWrt / ImmortalWrt 固件可视化构建器，Windows 桌面应用（Rust + Tauri 2）。
+OpenWrt / ImmortalWrt 固件可视化构建器，Windows 桌面应用（Rust + Tauri 3）。
 
 选择设备与软件包、配置系统选项，通过 ImageBuilder 生成固件，并在本地管理构建历史与产物。
 
@@ -130,6 +130,15 @@ cargo test -p wrt-ui-core
 ## 图标
 
 唯一视觉源是 `assets/wrt-ui-logo.png`；`python scripts/gen_icons.py` 生成 `src-tauri/icons` 下的 png 与 ico，不重新绘制。
+
+## Tauri 版本
+
+桌面外壳用 **Tauri 3**（当前官方只有 `3.0.0-alpha.6`，尚无稳定版）。迁移要点：
+Tauri 3 把 webview 运行时从 `tauri` 的 feature 中移出，必须额外依赖 `tauri-runtime-wry` 并在
+`tauri::Builder` 上显式 `.runtime(tauri_runtime_wry::Wry::default())`，漏掉这行 `cargo check`
+仍然通过，但启动时会报 `RuntimeNotConfigured`。桌面端与插件均为同批 alpha（`3.0.0-alpha.3`）。
+
+升级前夜的备份分支与回滚方式：`git checkout v1.1.2` 可回到 Tauri 2 的最后一个版本。
 
 ## 限制
 

@@ -1,6 +1,6 @@
 [package]
 name = "wrt-ui-core"
-version = "1.1.2"
+version = "1.2.0"
 description = "WRT-UI 业务核心：上游数据、脚本生成、配置与任务存储（不依赖桌面外壳）"
 edition = "2021"
 
