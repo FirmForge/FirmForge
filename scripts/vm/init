@@ -1,0 +1,97 @@
+#!/bin/sh
+# WRT-UI 自带 Linux 环境的 init（运行在 QEMU 的 initramfs 里）。
+# 职责：挂载伪文件系统 → 加载块/网络/文件系统驱动 → 挂载共享目录 → 配置 slirp 网络
+#       → 执行宿主机下发的 run.sh → 回写退出码 → 关机。
+#
+# 驱动加载支持两种内核：
+#   A) Alpine virt 内核 + modloop.img（squashfs，内含全部驱动模块）—— Alpine 官方做法
+#   B) 任意内核 + /wrtmods/kernel 下预置的 .ko（insmod 逐个加载）
+set -u
+
+log() { echo "[wrt-ui] $*"; }
+
+log "init start"
+mount -t proc proc /proc && log "proc ok" || log "proc FAIL"
+mount -t sysfs sys /sys && log "sysfs ok" || log "sysfs FAIL"
+mount -t devtmpfs dev /dev && log "devtmpfs ok" || log "devtmpfs FAIL"
+
+if [ -f /modloop.img ]; then
+  log "加载 modloop 驱动包"
+  mkdir -p /modloop /lib/modules
+  if losetup /dev/loop0 /modloop.img 2>/dev/null || losetup -f /modloop.img 2>/dev/null; then
+    if mount -t squashfs /dev/loop0 /modloop; then
+      log "modloop 挂载成功"
+      for p in /modloop/modules/lib/modules /modloop/lib/modules; do
+        if [ -d "$p" ]; then
+          mount --bind "$p" /lib/modules && log "modules 绑定 $p"
+          break
+        fi
+      done
+    else
+      log "modloop squashfs 挂载失败"
+    fi
+  else
+    log "losetup 失败"
+  fi
+  for m in virtio_pci virtio_blk virtio_net vfat fat; do
+    modprobe "$m" 2>/dev/null && log "modprobe $m ok" || log "modprobe $m 失败"
+  done
+else
+  log "加载预置内核模块"
+  MROOT=/wrtmods/kernel
+  for m in \
+    drivers/block/virtio_blk.ko \
+    drivers/net/ethernet/intel/e1000/e1000.ko \
+    fs/fat/fat.ko \
+    fs/nls/nls_cp437.ko \
+    fs/nls/nls_ascii.ko \
+    fs/nls/nls_utf8.ko \
+    fs/fat/vfat.ko ; do
+    [ -f "$MROOT/$m" ] || continue
+    err=$(insmod "$MROOT/$m" 2>&1)
+    if [ $? -eq 0 ]; then log "insmod $m ok"; else log "insmod $m 失败: $err"; fi
+  done
+fi
+sleep 1
+
+# 共享目录：QEMU 用 fat:rw 把宿主机目录映射成块设备（vvfat）。
+mkdir -p /host
+for dev in /dev/vda /dev/sda /dev/hda; do
+  for cand in "${dev}1" "$dev"; do
+    if [ -b "$cand" ]; then
+      if mount -t vfat "$cand" /host; then
+        log "共享目录已挂载 ($cand)"
+        break 2
+      else
+        log "挂载 $cand 失败"
+      fi
+    fi
+  done
+done
+
+# slirp 用户网络固定地址：10.0.2.15/24，网关 10.0.2.2，DNS 10.0.2.3。
+if ip link show eth0 >/dev/null 2>&1; then
+  ip link set eth0 up 2>/dev/null || true
+  ip addr add 10.0.2.15/24 dev eth0 2>/dev/null || true
+  ip route add default via 10.0.2.2 2>/dev/null || true
+  printf 'nameserver 10.0.2.3\nnameserver 223.5.5.5\n' > /etc/resolv.conf
+  log "网络已配置"
+else
+  log "eth0 不存在"
+fi
+
+cd /host 2>/dev/null || true
+if [ -f /host/run.sh ]; then
+  log "开始执行构建脚本"
+  /bin/sh /host/run.sh
+  rc=$?
+  log "构建脚本退出码 $rc"
+else
+  rc=127
+  log "未找到 /host/run.sh"
+fi
+echo "$rc" > /host/exitcode 2>/dev/null || true
+
+sync
+log "关机"
+poweroff -f 2>/dev/null || exit 0

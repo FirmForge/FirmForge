@@ -1,0 +1,16 @@
+[package]
+name = "wrt-ui-core"
+version = "1.0.0"
+description = "WRT-UI 业务核心：上游数据、脚本生成、配置与任务存储（不依赖桌面外壳）"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["native-tls", "json", "socks", "gzip"] }
+regex = "1"
+url = "2"
+dirs = "6"
+thiserror = "2"
+pwhash = "1"
+tokio = { version = "1", features = ["rt", "macros"] }

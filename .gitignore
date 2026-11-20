@@ -1,0 +1,11 @@
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/
+*.log
+.env
+.DS_Store
+Thumbs.db
+
+# 本机专用的 Cargo 配置（中文路径需要把 target 放到 ASCII 目录），不入库
+.cargo/config.toml

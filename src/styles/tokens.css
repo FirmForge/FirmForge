@@ -1,0 +1,143 @@
+/* 新野兽派设计令牌：黑框、硬阴影、零圆角。所有颜色与尺寸只从这里取值。
+   暗色只替换「结构色」，四支强调色保持不变；阴影跟随墨黑自动反白。 */
+:root {
+  color-scheme: light;
+
+  /* Colors */
+  --color-ink: #000000;
+  --color-paper: #ffffff;
+  --color-hot-pink: #ff006e;
+  --color-acid-lime: #ccff00;
+  --color-electric-cyan: #00d9ff;
+  --color-tangerine: #ff9500;
+  --surface-slab: #f4f4f4;
+
+  /* 强调色上的文字始终是深色，避免暗色模式下变成浅字压亮底 */
+  --color-on-accent: #000000;
+  --color-on-pink: #ffffff;
+
+  /* 大块选中填充：亮色是墨黑，暗色改用酸柠绿，避免整屏白块刺眼 */
+  --color-active-fill: var(--color-ink);
+  --color-active-text: var(--color-paper);
+  --color-head-bg: var(--color-ink);
+  --color-head-text: var(--color-paper);
+
+  /* 控制台（构建日志）在两种模式下都保持黑底白字 */
+  --surface-console: #000000;
+  --text-console: #f2f2f2;
+
+  /* Typography */
+  --font-sans: Inter, "Helvetica Neue", Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Noto Sans Mono CJK SC",
+    "Microsoft YaHei", monospace;
+  --text-display: 72px;
+  --text-heading-lg: 48px;
+  --text-heading: 32px;
+  --text-subheading: 24px;
+  --text-body: 16px;
+  --text-body-sm: 14px;
+  --text-label: 12px;
+  --tracking-display: -0.02em;
+  --tracking-label: 0.12em;
+
+  /* Structure */
+  --border-width: 2px;
+  --shadow-sm: 4px 4px 0 0 var(--color-ink);
+  --shadow-lg: 8px 8px 0 0 var(--color-ink);
+  --shadow-lift: 10px 10px 0 0 var(--color-ink);
+  --shadow-lift-pink: 10px 10px 0 0 var(--color-hot-pink);
+  --ease-out: 150ms ease-out;
+  --transition-base: 200ms;
+
+  /* Layout */
+  --spacing-unit: 8px;
+  --page-max-width: 1280px;
+  --section-gap: 80px;
+  --card-padding: 24px;
+  --element-gap: 16px;
+  --rail-width: 232px;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-ink: #f2f2f2;
+  --color-paper: #0b0b0b;
+  --surface-slab: #171717;
+
+  --color-active-fill: #ccff00;
+  --color-active-text: #000000;
+  --color-head-bg: #171717;
+  --color-head-text: #f2f2f2;
+
+  --surface-console: #000000;
+  --text-console: #f2f2f2;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-body-sm);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-hot-pink);
+  color: var(--color-on-pink);
+}
+
+/* 键盘焦点必须可见：3px 高饱和描边，不用模糊光晕。 */
+:focus-visible {
+  outline: 3px solid var(--color-hot-pink);
+  outline-offset: 2px;
+}
+
+/* 方角滚动条，轨道次级底色、滑块墨黑。 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink) var(--surface-slab);
+}
+
+*::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--surface-slab);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--color-ink);
+  border: 2px solid var(--surface-slab);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-hot-pink);
+}
+
+/* 减少动态效果：禁用位移与滚动动画，保留状态变化。 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

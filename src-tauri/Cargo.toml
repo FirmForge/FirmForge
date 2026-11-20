@@ -1,0 +1,38 @@
+[package]
+name = "wrt-ui"
+version = "1.0.0"
+description = "WRT-UI desktop firmware builder"
+edition = "2021"
+
+[lib]
+name = "wrt_ui_lib"
+# 桌面构建只需要 rlib；cdylib 在 windows-gnu 下会产生超出 PE 限制的导出序号
+# （ld: export ordinal too large），而移动端才需要 staticlib/cdylib。
+crate-type = ["rlib"]
+
+[workspace]
+members = ["core"]
+resolver = "2"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# 业务核心与桌面外壳分离：核心可在无 WebView2 的环境里单测。
+wrt-ui-core = { path = "core" }
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-single-instance = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-notification = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs", "time", "sync", "io-util"] }
+tar = "0.4"
+dirs = "6"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
