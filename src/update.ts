@@ -56,7 +56,7 @@ export function useUpdateCheck(auto = true): UpdateState {
   const initial = useRef<Cache | null>(readCache());
   const pending = useRef<Update | null>(null);
   const [info, setInfo] = useState<UpdateInfo | null>(initial.current?.info ?? null);
-  const [current, setCurrent] = useState(initial.current?.info.current ?? "");
+  const [current, setCurrent] = useState("");
   const [checkedAt, setCheckedAt] = useState<number | null>(initial.current?.at ?? null);
   const [loading, setLoading] = useState(false);
   const [installing, setInstalling] = useState(false);
@@ -140,10 +140,26 @@ export function useUpdateCheck(auto = true): UpdateState {
     }
   }, [installing]);
 
+  // 本地版本单独取：缓存里可能存着升级前的旧版本号
+  useEffect(() => {
+    if (!isDesktop()) return;
+    void getVersion()
+      .then(setCurrent)
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (!auto) return;
     const cached = initial.current;
-    if (cached && Date.now() - cached.at < STALE_MS) return;
+    if (cached && Date.now() - cached.at < STALE_MS) {
+      // 缓存没过期，但应用刚升级过（版本号变了）时必须立刻重查
+      void getVersion()
+        .then((local) => {
+          if (cached.info.current !== local) void checkNow();
+        })
+        .catch(() => {});
+      return;
+    }
     void checkNow();
   }, [auto, checkNow]);
 
