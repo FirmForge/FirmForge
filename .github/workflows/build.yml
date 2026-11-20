@@ -100,7 +100,7 @@ jobs:
             echo
             echo "- 下载 **NSIS 安装包**（\`*-setup.exe\`）安装；便携版为 \`wrt-ui.exe\`，解压即用。"
             echo "- 安装包未做代码签名，首次运行系统会提示“未知发布者”，请核对 SHA256 后再放行。"
-            echo "- 用户数据保存在 \`%LOCALAPPDATA%\\\\WRT-UI\`，覆盖安装不会清空；卸载默认保留。"
+            echo "- 用户数据保存在 `%LOCALAPPDATA%/WRT-UI`（设置页“05 数据目录”可直接打开），覆盖安装不会清空；卸载默认保留。"
             echo
             echo "## 校验"
             echo
