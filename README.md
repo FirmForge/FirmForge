@@ -11,10 +11,10 @@ OpenWrt / ImmortalWrt 固件可视化构建器，Windows 桌面应用（Rust + T
 3. 「固件构建」→ 选择设备 → 选择软件 → 配置固件 → 确认构建。
 4. 构建完成后在结果页把产物保存到系统下载目录的 `WRT-UI` 文件夹。
 
-Windows 上默认使用**内置 VM 引擎**：安装包自带 Alpine 内核与 initramfs，构建时由应用启动一个
-QEMU 虚拟机在里面跑 ImageBuilder，**不需要 WSL、Docker 或任何用户侧 Linux 环境**。
-若引擎资源缺失（「设置」页显示「内置 VM 引擎 不可用」），重新安装即可恢复；
-也支持退回 Docker Engine / WSL Containers 构建（装过 Docker Desktop 或 `wslc` 时可用）。
+应用只用**内置 VM 引擎**：安装包自带 Alpine 内核与 initramfs，构建时由应用启动一个 QEMU 虚拟机
+在里面跑 ImageBuilder，**不需要 WSL、Docker 或任何用户侧 Linux 环境**，装完即可直接构建。
+多引擎（Docker Engine / WSL Containers）路径已在 1.1.0 移除；若引擎资源缺失（「设置」页显示不可用），
+重新安装即可恢复。
 
 ## 桌面集成（Windows）
 
@@ -24,7 +24,7 @@ QEMU 虚拟机在里面跑 ImageBuilder，**不需要 WSL、Docker 或任何用�
 - **窗口状态**：位置与大小自动记忆（自实现 `window.json`，恢复前校验尺寸与屏幕范围）。
 - **开机自启**：默认关闭，在「设置 → 启动与窗口」里开启（写用户级 `Run` 注册表项，不需要管理员）。
 - **构建通知**：构建结束（成功/失败）弹系统通知。
-- **无控制台黑窗**：所有外部命令（`wslc` / `docker` / `qemu` / `explorer`）都用 `CREATE_NO_WINDOW` 启动，exe 是 `Windows GUI` 子系统。
+- **无控制台黑窗**：所有外部命令（`qemu` / `explorer`）都用 `CREATE_NO_WINDOW` 启动，exe 是 `Windows GUI` 子系统。
 
 ## 界面与设计规范
 
@@ -55,14 +55,15 @@ MUI 组件的外观集中在 `src/theme.ts` 覆写；页面里不再写死颜色
 
 ## 更新检测
 
-启动时静默检查一次 GitHub 最新发布（结果缓存 24 小时，手动检查不受限制），
-版本比较在 `src-tauri/core/src/util.rs` 的 `version_greater`，来源固定为
-`https://api.github.com/repos/MinimaxFlora/WRT-UI/releases/latest`。
+与 clash-verge-rev 同一套机制：`tauri-plugin-updater` + 签名清单，应用内直接下载、校验、静默安装并重启。
 
-- 有新版本时页头出现荧光粉徽标，点击进入设置页「07 更新」查看说明与发布页链接。
-- 只报告版本与说明，**不下载、不安装**：安装包未签名，更新由用户手动下载覆盖。
-- 草稿与预发布不提示；发布说明按纯文本显示（去掉 Markdown 标记），不渲染 HTML。
-- 打开发布页的 IPC 只接受 `https://github.com/MinimaxFlora/WRT-UI/releases` 前缀。
+- 清单由 CI 生成：`update.json`（直连 GitHub）与 `update-proxy.json`（ghproxy 加速），
+  以滚动标签 `updater` 发布；`src-tauri/tauri.conf.json` 的 `plugins.updater.endpoints` 依次尝试两者。
+- 安装包用 minisign 私钥签名（`TAURI_SIGNING_PRIVATE_KEY` 仓库 Secret），客户端用 `tauri.conf.json` 里的
+  `pubkey` 校验；签名不匹配的包不会被安装。
+- 前端逻辑在 `src/update.ts`：启动静默检查（1 小时缓存、24 小时重查），只比较数字版本段，
+  远端版本比本地旧时不提示；“下载并安装”带进度，装完自动重启。
+- 清单生成脚本：`scripts/make-update-json.mjs`（读取 `bundle/nsis/*.exe.sig` 与发布说明）。
 
 ## 数据位置
 
@@ -132,6 +133,7 @@ cargo test -p wrt-ui-core
 
 ## 限制
 
-- 安装包未做代码签名，Windows 会提示未知发布者。
-- 未实现自动更新。
-- 构建镜像与软件源必须可访问：查询走「设置」里的代理，镜像拉取走系统 Docker/WSL 配置。
+- 安装包未做 Windows 代码签名（Authenticode），首次运行会提示未知发布者；
+  更新包另用 minisign 签名，只用于 updater 校验完整性。
+- 构建需要的软件源必须可访问：查询与下载都走「设置」里的代理。
+- 更新清单依赖 GitHub Releases（国内可走 `update-proxy.json` 的 ghproxy 镜像）。

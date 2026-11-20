@@ -20,7 +20,6 @@ export type Build = {
   packages: string[];
   remove: string[];
   mirror: string;
-  registry?: string;
   hostname: string;
   address: string;
   timezone: string;
@@ -71,7 +70,6 @@ export type MirrorSource = { name: string; url: string };
 export type Settings = {
   ecosystem: Ecosystem;
   mirrors: MirrorSource[];
-  registry: string;
   proxy: string;
   theme: string;
   language: string;

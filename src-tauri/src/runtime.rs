@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
-use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use wrt_ui_core::error::{AppError, AppResult};
 
@@ -9,8 +8,6 @@ use wrt_ui_core::error::{AppError, AppResult};
 #[derive(Debug, Clone)]
 pub struct Spec {
     pub job_id: String,
-    pub image: String,
-    pub revision: String,
     pub version: String,
     pub target: String,
     pub ecosystem: wrt_ui_core::models::Ecosystem,
@@ -21,369 +18,16 @@ pub struct Spec {
     pub files: Vec<(String, String)>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EngineKind {
-    Docker,
-    Wslc,
-    Qemu,
-}
+/// 只保留内置 VM 引擎：安装包自带 QEMU 与 Alpine，装完即可构建，不依赖 Docker / WSL。
+pub const ENGINE_NAME: &str = "内置 VM 引擎";
 
-impl EngineKind {
-    pub fn name(self) -> &'static str {
-        match self {
-            EngineKind::Docker => "Docker Engine",
-            EngineKind::Wslc => "WSL Containers",
-            EngineKind::Qemu => "内置 VM 引擎",
-        }
-    }
-}
-
-/// Windows 默认用自带 VM 引擎（零外部依赖），其余平台用 Docker Engine。
-pub fn current() -> EngineKind {
-    if cfg!(windows) {
-        EngineKind::Qemu
-    } else {
-        EngineKind::Docker
-    }
-}
-
-/// Windows 上优先自带 VM 引擎；引擎资源缺失时才探测 Docker，最后退回 WSL Containers。
-pub async fn preferred() -> EngineKind {
-    if !cfg!(windows) {
-        return EngineKind::Docker;
-    }
-    if qemu::check().await.is_ok() {
-        EngineKind::Qemu
-    } else if docker::check().await.is_ok() {
-        EngineKind::Docker
-    } else {
-        EngineKind::Wslc
-    }
+/// 引擎描述固定，不再做多引擎探测。
+pub fn engine_name() -> &'static str {
+    ENGINE_NAME
 }
 
 pub type LogFn = Arc<dyn Fn(&str) + Send + Sync>;
 
-pub fn container_name(job_id: &str) -> String {
-    format!("wrtkit-{job_id}")
-}
-
-fn exe(name: &str) -> String {
-    if cfg!(windows) {
-        format!("{name}.exe")
-    } else {
-        name.to_string()
-    }
-}
-
-/// 执行外部程序并把 stdout/stderr 逐行喂给日志回调。
-/// 只接受显式参数数组，不经过 shell，也不拼接用户输入。
-async fn run_streamed(program: &str, args: &[String], log: &LogFn) -> AppResult<()> {
-    let mut cmd = Command::new(program);
-    cmd.args(args)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true);
-    // GUI 应用启动控制台子进程时默认会新开一个黑窗，必须显式传 CREATE_NO_WINDOW。
-    #[cfg(windows)]
-    cmd.creation_flags(0x0800_0000);
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| AppError::Engine(format!("无法启动 {program}: {e}")))?;
-
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| AppError::Engine("无法读取输出".into()))?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or_else(|| AppError::Engine("无法读取错误输出".into()))?;
-
-    let log_out = log.clone();
-    let log_err = log.clone();
-    let out_task = tokio::spawn(async move {
-        let mut lines = BufReader::new(stdout).lines();
-        while let Ok(Some(line)) = lines.next_line().await {
-            log_out(&line);
-        }
-    });
-    let err_task = tokio::spawn(async move {
-        let mut lines = BufReader::new(stderr).lines();
-        while let Ok(Some(line)) = lines.next_line().await {
-            log_err(&line);
-        }
-    });
-
-    let status = child
-        .wait()
-        .await
-        .map_err(|e| AppError::Engine(e.to_string()))?;
-    let _ = out_task.await;
-    let _ = err_task.await;
-    if !status.success() {
-        return Err(AppError::Engine(format!(
-            "{program} 退出，状态码 {}",
-            status.code().unwrap_or(-1)
-        )));
-    }
-    Ok(())
-}
-
-async fn capture(program: &str, args: &[String]) -> AppResult<String> {
-    let mut cmd = Command::new(program);
-    cmd.args(args).stdin(Stdio::null()).kill_on_drop(true);
-    #[cfg(windows)]
-    cmd.creation_flags(0x0800_0000);
-    let out = cmd
-        .output()
-        .await
-        .map_err(|e| AppError::Engine(format!("无法启动 {program}: {e}")))?;
-    if !out.status.success() {
-        let msg = String::from_utf8_lossy(&out.stderr).trim().to_string();
-        return Err(AppError::Engine(if msg.is_empty() {
-            format!("{program} 执行失败")
-        } else {
-            msg
-        }));
-    }
-    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
-}
-
-/// WSL Containers（Windows）。
-pub mod wslc {
-    use super::*;
-
-    fn binary() -> String {
-        exe("wslc")
-    }
-
-    pub async fn check() -> AppResult<String> {
-        match capture(&binary(), &["info".to_string()]).await {
-            Ok(out) => Ok(if out.is_empty() {
-                "wslc 已就绪".to_string()
-            } else {
-                out
-            }),
-            Err(e) => Err(AppError::Engine(format!("wslc 不可用: {e}"))),
-        }
-    }
-
-    pub async fn run(spec: &Spec, log: &LogFn, out_dir: &Path) -> AppResult<()> {
-        let bin = binary();
-        let name = container_name(&spec.job_id);
-        run_streamed(&bin, &["pull".to_string(), spec.image.clone()], log).await?;
-        let args = vec![
-            "create".to_string(),
-            "--name".into(),
-            name.clone(),
-            "--label".into(),
-            format!("io.wrtkit.job={}", spec.job_id),
-            "-e".into(),
-            "WRT_ROOTFS_SIZE=".to_string() + &spec.rootfs_size.to_string(),
-            "-e".into(),
-            format!("WRT_REVISION={}", spec.revision),
-            "-e".into(),
-            format!("WRT_PROFILE={}", spec.profile),
-            "-e".into(),
-            format!("WRT_PACKAGES={}", spec.packages),
-            "-e".into(),
-            format!("WRT_MIRROR={}", spec.mirror),
-            spec.image.clone(),
-            "sh".into(),
-            "/tmp/wrtkit/run.sh".into(),
-        ];
-        run_streamed(&bin, &args, log).await?;
-
-        // 先把文件树写到临时目录，再整体复制进容器。
-        let staging = staging_dir()?;
-        write_files(&staging, &spec.files)?;
-        let src = staging.join("wrtkit").to_string_lossy().to_string();
-        let dst = format!("{name}:/tmp");
-        let result = async {
-            run_streamed(&bin, &["container".to_string(), "cp".into(), src, dst], log).await?;
-            run_streamed(&bin, &["start".to_string(), "-a".into(), name.clone()], log).await?;
-            std::fs::create_dir_all(out_dir)?;
-            let src_out = format!("{name}:/tmp/wrtkit-work/output/.");
-            let dst_out = out_dir.to_string_lossy().to_string();
-            run_streamed(
-                &bin,
-                &["container".to_string(), "cp".into(), src_out, dst_out],
-                log,
-            )
-            .await
-        }
-        .await;
-        let _ = tokio::fs::remove_dir_all(&staging).await;
-        let cleanup = run_streamed(
-            &bin,
-            &[
-                "container".to_string(),
-                "rm".into(),
-                "-f".into(),
-                name.clone(),
-            ],
-            log,
-        )
-        .await;
-        match cleanup {
-            Ok(()) => log("\n构建容器已清理"),
-            Err(e) => log(&format!("\n清理构建容器失败：{e}")),
-        }
-        result
-    }
-
-    pub async fn remove_image(image: &str) -> AppResult<()> {
-        let silent: LogFn = Arc::new(|_: &str| {});
-        match run_streamed(
-            &binary(),
-            &["image".to_string(), "remove".into(), image.to_string()],
-            &silent,
-        )
-        .await
-        {
-            Ok(()) => Ok(()),
-            Err(e) => {
-                let text = e.to_string();
-                if text.contains("WSLC_E_IMAGE_NOT_FOUND") || text.contains("not found") {
-                    Ok(())
-                } else {
-                    Err(e)
-                }
-            }
-        }
-    }
-
-    pub async fn remove_container(job_id: &str) -> AppResult<()> {
-        let name = container_name(job_id);
-        let silent: LogFn = Arc::new(|_: &str| {});
-        match run_streamed(
-            &binary(),
-            &["container".to_string(), "rm".into(), "-f".into(), name],
-            &silent,
-        )
-        .await
-        {
-            Ok(()) => Ok(()),
-            Err(e) => {
-                let text = e.to_string();
-                if text.contains("not found") || text.contains("WSLC_E") {
-                    Ok(())
-                } else {
-                    Err(e)
-                }
-            }
-        }
-    }
-}
-
-/// Docker Engine（Linux，或安装了 Docker CLI 的 Windows）。
-pub mod docker {
-    use super::*;
-
-    pub async fn check() -> AppResult<String> {
-        let version = capture(
-            &exe("docker"),
-            &[
-                "version".to_string(),
-                "--format".into(),
-                "{{.Server.Version}}".into(),
-            ],
-        )
-        .await
-        .map_err(|e| AppError::Engine(format!("Docker 不可用: {e}")))?;
-        Ok(format!("Docker Engine {version}"))
-    }
-
-    pub async fn run(spec: &Spec, log: &LogFn, out_dir: &Path) -> AppResult<()> {
-        let bin = exe("docker");
-        let name = container_name(&spec.job_id);
-        run_streamed(&bin, &["pull".to_string(), spec.image.clone()], log).await?;
-        let args = vec![
-            "create".to_string(),
-            "--name".into(),
-            name.clone(),
-            "--label".into(),
-            format!("io.wrtkit.job={}", spec.job_id),
-            "-e".into(),
-            format!("WRT_ROOTFS_SIZE={}", spec.rootfs_size),
-            "-e".into(),
-            format!("WRT_REVISION={}", spec.revision),
-            "-e".into(),
-            format!("WRT_PROFILE={}", spec.profile),
-            "-e".into(),
-            format!("WRT_PACKAGES={}", spec.packages),
-            "-e".into(),
-            format!("WRT_MIRROR={}", spec.mirror),
-            spec.image.clone(),
-            "sh".into(),
-            "/tmp/wrtkit/run.sh".into(),
-        ];
-        run_streamed(&bin, &args, log).await?;
-        let staging = staging_dir()?;
-        write_files(&staging, &spec.files)?;
-        let src = staging.join("wrtkit").to_string_lossy().to_string();
-        let dst = format!("{name}:/tmp");
-        let result = async {
-            run_streamed(&bin, &["cp".to_string(), src, dst], log).await?;
-            run_streamed(&bin, &["start".to_string(), "-a".into(), name.clone()], log).await?;
-            std::fs::create_dir_all(out_dir)?;
-            let src_out = format!("{name}:/tmp/wrtkit-work/output/.");
-            let dst_out = out_dir.to_string_lossy().to_string();
-            run_streamed(&bin, &["cp".to_string(), src_out, dst_out], log).await
-        }
-        .await;
-        let _ = tokio::fs::remove_dir_all(&staging).await;
-        match run_streamed(&bin, &["rm".to_string(), "-f".into(), name], log).await {
-            Ok(()) => log("\n构建容器已清理"),
-            Err(e) => log(&format!("\n清理构建容器失败：{e}")),
-        }
-        result
-    }
-
-    pub async fn remove_image(image: &str) -> AppResult<()> {
-        let silent: LogFn = Arc::new(|_| {});
-        match run_streamed(
-            &exe("docker"),
-            &["rmi".to_string(), image.to_string()],
-            &silent,
-        )
-        .await
-        {
-            Ok(()) => Ok(()),
-            Err(e) => {
-                let text = e.to_string();
-                if text.contains("No such image") {
-                    Ok(())
-                } else {
-                    Err(e)
-                }
-            }
-        }
-    }
-
-    pub async fn remove_container(job_id: &str) -> AppResult<()> {
-        let name = container_name(job_id);
-        let silent: LogFn = Arc::new(|_| {});
-        match run_streamed(
-            &exe("docker"),
-            &["rm".to_string(), "-f".into(), name],
-            &silent,
-        )
-        .await
-        {
-            Ok(()) => Ok(()),
-            Err(e) => {
-                let text = e.to_string();
-                if text.contains("No such container") {
-                    Ok(())
-                } else {
-                    Err(e)
-                }
-            }
-        }
-    }
-}
 
 /// 内置 QEMU 引擎：用随包分发的 Alpine 微型 VM 跑 ImageBuilder 构建，
 /// 不需要 Docker、WSL 或用户自己安装任何 Linux 环境。
@@ -739,10 +383,6 @@ exit $rc
         Ok(())
     }
 
-    pub async fn remove_image(_image: &str) -> AppResult<()> {
-        // 内置引擎没有容器镜像需要清理。
-        Ok(())
-    }
 
     pub async fn remove_container(job_id: &str) -> AppResult<()> {
         // 只在数据目录里收拾该任务的 VM 工作目录。
@@ -763,97 +403,39 @@ pub fn shell_quote_packages(packages: &str) -> String {
     format!("'{}'", cleaned.trim())
 }
 
-pub fn staging_dir() -> AppResult<PathBuf> {
-    let base = std::env::temp_dir().join(format!("wrtkit-input-{}", std::process::id()));
-    std::fs::create_dir_all(&base)?;
-    Ok(base)
+
+
+
+/// 检查内置引擎是否可用（QEMU 与内核资源是否随包存在）。
+pub async fn check() -> AppResult<String> {
+    qemu::check().await
 }
 
-/// 文件层落到磁盘；所有相对路径都在 `wrtkit/` 下，并且只接受普通文件名。
-pub fn write_files(root: &Path, files: &[(String, String)]) -> AppResult<()> {
-    for (name, contents) in files {
-        if name.contains("..") || name.starts_with('/') {
-            return Err(AppError::Invalid(format!("文件层路径无效: {name}")));
-        }
-        let path: PathBuf = root.join(name.replace('/', std::path::MAIN_SEPARATOR_STR));
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        std::fs::write(&path, contents)?;
-    }
-    Ok(())
+/// 用内置 VM 引擎执行一次构建。
+pub async fn run(spec: &Spec, log: &LogFn, out_dir: &Path) -> AppResult<()> {
+    qemu::run(spec, log, out_dir).await
 }
 
-pub async fn check(kind: EngineKind) -> AppResult<String> {
-    match kind {
-        EngineKind::Docker => docker::check().await,
-        EngineKind::Wslc => wslc::check().await,
-        EngineKind::Qemu => qemu::check().await,
-    }
-}
-
-pub async fn run(kind: EngineKind, spec: &Spec, log: &LogFn, out_dir: &Path) -> AppResult<()> {
-    match kind {
-        EngineKind::Docker => docker::run(spec, log, out_dir).await,
-        EngineKind::Wslc => wslc::run(spec, log, out_dir).await,
-        EngineKind::Qemu => qemu::run(spec, log, out_dir).await,
-    }
-}
-
-pub async fn remove_image(kind: EngineKind, image: &str) -> AppResult<()> {
-    match kind {
-        EngineKind::Docker => docker::remove_image(image).await,
-        EngineKind::Wslc => wslc::remove_image(image).await,
-        EngineKind::Qemu => qemu::remove_image(image).await,
-    }
-}
-
-pub async fn remove_job_container(kind: EngineKind, job_id: &str) -> AppResult<()> {
-    match kind {
-        EngineKind::Docker => docker::remove_container(job_id).await,
-        EngineKind::Wslc => wslc::remove_container(job_id).await,
-        EngineKind::Qemu => qemu::remove_container(job_id).await,
-    }
+/// 结束某个任务残留的 VM 进程（如果有）。
+pub async fn remove_job(job_id: &str) -> AppResult<()> {
+    qemu::remove_container(job_id).await
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn container_names_are_prefixed_and_path_safe() {
-        assert_eq!(container_name("abcdef123456"), "wrtkit-abcdef123456");
-    }
 
     #[test]
-    fn write_files_rejects_traversal() {
-        let dir = std::env::temp_dir().join("wrtui-test-layer");
-        let _ = std::fs::remove_dir_all(&dir);
-        let ok = write_files(&dir, &[("wrtkit/run.sh".into(), "echo ok\n".into())]);
-        assert!(ok.is_ok(), "{ok:?}");
-        assert!(dir.join("wrtkit").join("run.sh").exists());
-        let bad = write_files(&dir, &[("wrtkit/../../evil.sh".into(), "x".into())]);
-        assert!(bad.is_err());
-        let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn engine_selection_is_platform_specific() {
-        let kind = current();
-        if cfg!(windows) {
-            assert_eq!(kind, EngineKind::Qemu);
-        } else {
-            assert_eq!(kind, EngineKind::Docker);
-        }
-        assert!(!kind.name().is_empty());
+    fn engine_name_is_single_builtin() {
+        assert_eq!(engine_name(), "内置 VM 引擎");
+        assert!(!engine_name().is_empty());
     }
 
     #[test]
     fn build_script_points_at_imagebuilder_archive() {
         let spec = Spec {
             job_id: "t".into(),
-            image: String::new(),
-            revision: String::new(),
             version: "24.10.5".into(),
             target: "mediatek/filogic".into(),
             ecosystem: wrt_ui_core::models::Ecosystem::ImmortalWrt,

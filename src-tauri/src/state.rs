@@ -1,4 +1,3 @@
-use crate::runtime::{current, EngineKind};
 use std::collections::HashMap;
 use tokio::sync::{Mutex, RwLock};
 use tokio::task::AbortHandle;
@@ -10,8 +9,6 @@ use wrt_ui_core::store::Store;
 /// 桌面应用共享状态：设置、任务清单、活动构建与下载器。
 pub struct AppState {
     pub store: Store,
-    engine: std::sync::RwLock<EngineKind>,
-    pub hub_base: String,
     settings: RwLock<Settings>,
     fetcher: RwLock<Fetcher>,
     jobs: RwLock<Vec<Job>>,
@@ -26,8 +23,6 @@ impl AppState {
         store.save_jobs(&jobs)?;
         Ok(Self {
             store,
-            engine: std::sync::RwLock::new(current()),
-            hub_base: "https://hub.docker.com".to_string(),
             settings: RwLock::new(settings),
             fetcher: RwLock::new(fetcher),
             jobs: RwLock::new(jobs),
@@ -97,16 +92,6 @@ impl AppState {
         snapshot
     }
 
-    pub async fn set_image(&self, id: &str, image: &str) {
-        let snapshot = {
-            let mut jobs = self.jobs.write().await;
-            if let Some(j) = jobs.iter_mut().find(|j| j.id == id) {
-                j.image = image.to_string();
-            }
-            jobs.clone()
-        };
-        let _ = self.store.save_jobs(&snapshot);
-    }
 
     pub async fn mark_cleaned(&self, id: &str) -> AppResult<()> {
         let snapshot = {
@@ -144,14 +129,4 @@ impl AppState {
         !self.active.lock().await.is_empty()
     }
 
-    /// 当前选用的构建引擎（探测结果会在 `environment` 命令里刷新）。
-    pub fn engine(&self) -> EngineKind {
-        *self.engine.read().unwrap_or_else(|e| e.into_inner())
-    }
-
-    pub fn set_engine(&self, kind: EngineKind) {
-        if let Ok(mut guard) = self.engine.write() {
-            *guard = kind;
-        }
-    }
 }

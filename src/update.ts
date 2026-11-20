@@ -1,10 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, isDesktop } from "./api";
+import { getVersion } from "@tauri-apps/api/app";
+import { relaunch } from "@tauri-apps/plugin-process";
+import { check, type Update } from "@tauri-apps/plugin-updater";
+import { isDesktop } from "./api";
+export { formatNotes, isNewer } from "./version";
+import { isNewer } from "./version";
 import type { UpdateInfo } from "./types";
 
 const CACHE_KEY = "wrt-ui.update";
-/** 参考 clash-verge-rev：同一小时内不重复请求，跨天再查一次，避免打满 GitHub 限额。 */
-const STALE_MS = 24 * 60 * 60 * 1000;
+/** 与 clash-verge-rev 一致：1 小时内不重复请求，跨天再查一次。 */
+const STALE_MS = 60 * 60 * 1000;
+const REFETCH_MS = 24 * 60 * 60 * 1000;
 
 type Cache = { at: number; info: UpdateInfo };
 
@@ -30,49 +36,74 @@ function writeCache(info: UpdateInfo): number {
   return at;
 }
 
-/** 发布说明是 Markdown；这里只做轻量去标记，避免引入渲染依赖与 XSS 面。 */
-export function formatNotes(text: string): string {
-  return text
-    .replace(/^#{1,6}\s*/gm, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/^\s*[-*]\s+/gm, "• ")
-    .split(/\n{3,}/)
-    .join("\n\n")
-    .trim();
-}
-
 export type UpdateState = {
   info: UpdateInfo | null;
   current: string;
   checkedAt: number | null;
   loading: boolean;
+  installing: boolean;
+  progress: number | null;
   error: string;
   check: () => Promise<void>;
+  install: () => Promise<void>;
 };
 
 /**
- * 更新检测：启动时静默查一次（缓存 24h），设置页可手动强制检查。
- * 只报告版本与说明，不下载、不安装。
+ * 更新检测走 tauri-plugin-updater：签名校验 + 静默安装 + 重启。
+ * 端点来自 tauri.conf 里配置的 update.json / update-proxy.json。
  */
 export function useUpdateCheck(auto = true): UpdateState {
   const initial = useRef<Cache | null>(readCache());
+  const pending = useRef<Update | null>(null);
   const [info, setInfo] = useState<UpdateInfo | null>(initial.current?.info ?? null);
   const [current, setCurrent] = useState(initial.current?.info.current ?? "");
   const [checkedAt, setCheckedAt] = useState<number | null>(initial.current?.at ?? null);
   const [loading, setLoading] = useState(false);
+  const [installing, setInstalling] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState("");
   const running = useRef(false);
 
-  const check = useCallback(async () => {
+  const releaseUrl = (version: string) =>
+    `https://github.com/MinimaxFlora/WRT-UI/releases/tag/v${version.replace(/^v/i, "")}`;
+
+  const checkNow = useCallback(async () => {
     if (!isDesktop() || running.current) return;
     running.current = true;
     setLoading(true);
     setError("");
     try {
-      const result = await api.checkUpdate();
+      const local = await getVersion();
+      setCurrent(local);
+      const found = await check();
+      if (pending.current) {
+        await pending.current.close().catch(() => {});
+        pending.current = null;
+      }
+      if (!found || !isNewer(found.version, local)) {
+        await found?.close().catch(() => {});
+        const result: UpdateInfo = {
+          current: local,
+          latest: local,
+          available: false,
+          notes: "",
+          url: releaseUrl(local),
+          published_at: "",
+        };
+        setInfo(result);
+        setCheckedAt(writeCache(result));
+        return;
+      }
+      pending.current = found;
+      const result: UpdateInfo = {
+        current: local,
+        latest: found.version.replace(/^v/i, ""),
+        available: true,
+        notes: found.body ?? "",
+        url: releaseUrl(found.version),
+        published_at: found.date ?? "",
+      };
       setInfo(result);
-      setCurrent(result.current);
       setCheckedAt(writeCache(result));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -82,20 +113,51 @@ export function useUpdateCheck(auto = true): UpdateState {
     }
   }, []);
 
-  useEffect(() => {
-    if (!isDesktop()) return;
-    void api
-      .appVersion()
-      .then(setCurrent)
-      .catch(() => {});
-  }, []);
+  const install = useCallback(async () => {
+    const found = pending.current;
+    if (!found || installing) return;
+    setInstalling(true);
+    setError("");
+    setProgress(0);
+    try {
+      let total = 0;
+      let done = 0;
+      await found.downloadAndInstall((event) => {
+        if (event.event === "Started") {
+          total = event.data.contentLength ?? 0;
+        } else if (event.event === "Progress") {
+          done += event.data.chunkLength;
+          if (total > 0) setProgress(Math.min(99, Math.round((done / total) * 100)));
+        } else if (event.event === "Finished") {
+          setProgress(100);
+        }
+      });
+      await relaunch();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setInstalling(false);
+      setProgress(null);
+    }
+  }, [installing]);
 
   useEffect(() => {
     if (!auto) return;
     const cached = initial.current;
     if (cached && Date.now() - cached.at < STALE_MS) return;
-    void check();
-  }, [auto, check]);
+    void checkNow();
+  }, [auto, checkNow]);
 
-  return { info, current, checkedAt, loading, error, check };
+  useEffect(() => {
+    if (!auto) return;
+    const timer = window.setInterval(() => void checkNow(), REFETCH_MS);
+    return () => window.clearInterval(timer);
+  }, [auto, checkNow]);
+
+  useEffect(() => {
+    return () => {
+      void pending.current?.close().catch(() => {});
+    };
+  }, []);
+
+  return { info, current, checkedAt, loading, installing, progress, error, check: checkNow, install };
 }

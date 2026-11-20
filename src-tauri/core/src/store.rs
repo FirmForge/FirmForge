@@ -85,7 +85,6 @@ impl Store {
         let settings = Settings {
             ecosystem: default_ecosystem(),
             mirrors: default_mirrors(default_ecosystem()),
-            registry: String::new(),
             proxy: String::new(),
             theme: "light".to_string(),
             language: String::new(),
@@ -184,7 +183,7 @@ pub fn is_firmware(name: &str) -> bool {
 }
 
 pub fn validate_build(b: &Build) -> AppResult<()> {
-    use crate::net::{normalize_registry, valid_mirror};
+    use crate::net::valid_mirror;
     use crate::upstream::{valid_hostname, valid_part, valid_version, zone_value};
     let parts: Vec<&str> = b.target.split('/').collect();
     if !valid_version(&b.version)
@@ -219,7 +218,6 @@ pub fn validate_build(b: &Build) -> AppResult<()> {
     if !b.timezone.is_empty() && zone_value(&b.timezone).is_none() {
         return Err(AppError::Invalid("不支持此时区".into()));
     }
-    normalize_registry(&b.registry)?;
     crate::scripts::validate_quick(b)
 }
 

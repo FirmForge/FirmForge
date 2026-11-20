@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatBytes, formatTime, shortId, statusLabel, statusTone } from "../src/format";
-import { formatNotes } from "../src/update";
+import { formatNotes, isNewer } from "../src/version";
 
 describe("容量格式化", () => {
   it("按二进制单位递进", () => {
@@ -19,7 +19,7 @@ describe("容量格式化", () => {
 });
 
 describe("时间与状态", () => {
-    it("解析 ISO 时间", () => {
+  it("解析 ISO 时间", () => {
     const text = formatTime("2026-11-17T12:00:00Z");
     expect(text).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
   });
@@ -45,5 +45,16 @@ describe("更新说明去标记", () => {
 
   it("空内容不抛出", () => {
     expect(formatNotes("")).toBe("");
+  });
+});
+
+describe("版本比较", () => {
+  it("只比数字段，忽略 v 前缀与后缀", () => {
+    expect(isNewer("1.1.0", "1.0.0")).toBe(true);
+    expect(isNewer("v1.0.1", "1.0.0")).toBe(true);
+    expect(isNewer("2.0.0-beta.1", "1.9.9")).toBe(true);
+    expect(isNewer("1.0.0", "1.0.0")).toBe(false);
+    expect(isNewer("1.0.0", "1.0.1")).toBe(false);
+    expect(isNewer("nightly", "1.0.0")).toBe(false);
   });
 });

@@ -48,53 +48,6 @@ pub fn valid_mirror(raw: &str) -> bool {
     path_ok && !forbidden_host(u.host_str().unwrap_or(""))
 }
 
-/// 镜像仓库前缀校验：它是镜像引用前缀，不是任意 URL。
-pub fn normalize_registry(input: &str) -> AppResult<String> {
-    let v = input.trim();
-    if v.is_empty() {
-        return Ok(String::new());
-    }
-    let v = v.strip_prefix("https://").unwrap_or(v);
-    let v = v.trim_end_matches('/');
-    if v.len() > 255 || v.contains("://") || v.contains(['@', '?', '#', '%', '\\']) {
-        return Err(AppError::Invalid("请输入 HTTPS 镜像仓库前缀".into()));
-    }
-    let parts: Vec<&str> = v.split('/').collect();
-    let host = parts[0];
-    let host_ok = host
-        .chars()
-        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '.' | '-' | ':'))
-        && host
-            .chars()
-            .next()
-            .map(|c| c.is_ascii_alphanumeric())
-            .unwrap_or(false);
-    if !host_ok || !host.contains(['.', ':']) || host.contains("..") {
-        return Err(AppError::Invalid("镜像仓库地址无效".into()));
-    }
-    for part in &parts[1..] {
-        let ok = part
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '.' | '_' | '-'))
-            && part
-                .chars()
-                .next()
-                .map(|c| c.is_ascii_alphanumeric())
-                .unwrap_or(false);
-        if !ok {
-            return Err(AppError::Invalid("镜像仓库路径无效".into()));
-        }
-    }
-    Ok(v.to_string())
-}
-
-pub fn image_reference(prefix: &str, canonical: &str) -> String {
-    if prefix.is_empty() {
-        canonical.to_string()
-    } else {
-        format!("{prefix}/{canonical}")
-    }
-}
 
 /// 查询代理只接受 http / socks5，且不允许凭据与路径。
 pub fn parse_proxy(value: &str) -> AppResult<Option<String>> {

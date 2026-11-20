@@ -9,7 +9,6 @@ export const initialBuild: Build = {
   packages: [],
   remove: [],
   mirror: "",
-  registry: "",
   hostname: "WRT-UI",
   address: "192.168.2.1/24",
   timezone: "Asia/Shanghai",

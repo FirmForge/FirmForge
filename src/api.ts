@@ -16,7 +16,6 @@ import type {
   PackagesResult,
   ProfileInfo,
   Settings,
-  UpdateInfo,
   Versions,
 } from "./types";
 
@@ -63,7 +62,6 @@ export const api = {
   settings: () => call<Settings>("get_settings"),
   saveMirrors: (mirrors: { name: string; url: string }[]) =>
     call<Settings>("save_mirrors", { mirrors }),
-  saveRegistry: (registry: string) => call<Settings>("save_registry", { registry }),
   saveProxy: (proxy: string) => call<Settings>("save_proxy", { proxy }),
   savePrefs: (prefs: { theme?: string; language?: string }) =>
     call<Settings>("save_prefs", prefs),
@@ -84,9 +82,6 @@ export const api = {
   cleanup: (id: string) => call<number>("cleanup_job", { id }),
   openDataDir: () => call<string>("open_data_dir"),
 
-  appVersion: () => call<string>("app_version"),
-  checkUpdate: () => call<UpdateInfo>("check_update"),
-  openReleasePage: (url: string) => call<void>("open_release_page", { url }),
 };
 
 export const events = {

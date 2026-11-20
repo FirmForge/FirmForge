@@ -1,9 +1,6 @@
 use crate::error::{AppError, AppResult};
-use crate::models::{
-    Build, Device, Ecosystem, PackageItem, PackagesResult, ProfileInfo, UpdateInfo, Versions,
-};
+use crate::models::{Build, Device, Ecosystem, PackageItem, PackagesResult, ProfileInfo, Versions};
 use crate::net::{valid_mirror, Fetcher};
-use crate::util::version_greater;
 use regex::Regex;
 use serde::Deserialize;
 use serde_json::Value;
@@ -457,26 +454,10 @@ pub async fn packages(
     })
 }
 
-/// 镜像 tag 规则：immortalwrt 的 ImageBuilder 镜像 tag 以 `openwrt-` 前缀标版本，
-/// openwrt 上游镜像直接用版本号；分支快照两者都用原始版本串。
-pub fn image_tag(b: &Build) -> String {
-    let ecosystem = b.ecosystem.unwrap_or_default();
-    let version = if b.version.ends_with("-SNAPSHOT") {
-        b.version.clone()
-    } else if ecosystem == Ecosystem::ImmortalWrt {
-        format!("openwrt-{}", b.version)
-    } else {
-        b.version.clone()
-    };
-    format!("{}-{}", b.target.replace('/', "-"), version)
-}
 
-/// 构建前检查：设备存在性、根分区能力、主题真实存在、镜像摘要可确认。
-pub async fn preflight(
-    fetcher: &Fetcher,
-    build: &Build,
-    hub_base: &str,
-) -> AppResult<(String, String)> {
+/// 构建前检查：设备存在、根分区可调、主题在该版本软件源里真实存在。
+/// 内置 VM 引擎直接用 ImageBuilder 构建，不需要容器镜像摘要。
+pub async fn preflight(fetcher: &Fetcher, build: &Build) -> AppResult<()> {
     validate_target(&build.mirror, &build.version, &build.target, &build.profile)?;
     let doc: ProfilesDoc = fetcher
         .get_json(&format!(
@@ -520,53 +501,10 @@ pub async fn preflight(
             )));
         }
     }
-    let tag = image_tag(build);
-    let ecosystem = build.ecosystem.unwrap_or_default();
-    #[derive(Deserialize)]
-    struct TagInfo {
-        #[serde(default)]
-        digest: String,
-    }
-    let url = format!(
-        "{hub_base}/v2/repositories/{}/tags/{}",
-        ecosystem.image_repo(),
-        urlencode(&tag)
-    );
-    let info: TagInfo = fetcher
-        .get_json(&url)
-        .await
-        .map_err(|e| AppError::Network(format!("Docker Hub 中无法确认镜像 {tag}: {e}")))?;
-    let digest = info.digest.trim();
-    if !is_digest(digest) {
-        return Err(AppError::Format("Docker Hub 未返回有效的镜像摘要".into()));
-    }
-    Ok((
-        format!("{}@{digest}", ecosystem.image_repo()),
-        doc.version_code,
-    ))
+    Ok(())
 }
 
-fn is_digest(value: &str) -> bool {
-    let Some(hex) = value.strip_prefix("sha256:") else {
-        return false;
-    };
-    hex.len() == 64
-        && hex
-            .chars()
-            .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
-}
 
-fn urlencode(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    for c in value.chars() {
-        if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '~') {
-            out.push(c);
-        } else {
-            out.push_str(&format!("%{:02X}", c as u32));
-        }
-    }
-    out
-}
 
 #[cfg(test)]
 mod tests {
@@ -593,33 +531,6 @@ mod tests {
         assert!(!valid_version("25.12.0-rc1"));
     }
 
-    #[test]
-    fn image_tag_matches_upstream_naming() {
-        assert_eq!(
-            image_tag(&build(
-                Ecosystem::ImmortalWrt,
-                "24.10.5",
-                "mediatek/filogic"
-            )),
-            "mediatek-filogic-openwrt-24.10.5"
-        );
-        assert_eq!(
-            image_tag(&build(Ecosystem::OpenWrt, "24.10.5", "mediatek/filogic")),
-            "mediatek-filogic-24.10.5"
-        );
-        assert_eq!(
-            image_tag(&build(Ecosystem::ImmortalWrt, "24.10.5", "x86/64")),
-            "x86-64-openwrt-24.10.5"
-        );
-        assert_eq!(
-            image_tag(&build(
-                Ecosystem::ImmortalWrt,
-                "25.12-SNAPSHOT",
-                "ramips/mt7621"
-            )),
-            "ramips-mt7621-25.12-SNAPSHOT"
-        );
-    }
 
     #[test]
     fn feeds_parser_skips_noise_and_dedupes() {
@@ -639,14 +550,6 @@ mod tests {
         assert_eq!(category_for("kmod-dae4"), "");
     }
 
-    #[test]
-    fn digest_validator_rejects_truncated_and_upper() {
-        let good = format!("sha256:{}", "a".repeat(64));
-        assert!(is_digest(&good));
-        assert!(!is_digest("sha256:ABCDEF"));
-        assert!(!is_digest("abc"));
-        assert!(!is_digest(&format!("sha256:{}", "A".repeat(64))));
-    }
 
     #[test]
     fn hostname_and_zone_rules() {
@@ -670,52 +573,3 @@ mod tests {
 }
 
 // ---------------------------------------------------------------- 更新检查
-
-/// 更新来源固定为本仓库的 releases/latest；下载与安装由用户手动完成。
-pub const RELEASE_API: &str = "https://api.github.com/repos/MinimaxFlora/WRT-UI/releases/latest";
-
-#[derive(Debug, Deserialize)]
-struct GithubRelease {
-    #[serde(default)]
-    tag_name: String,
-    #[serde(default)]
-    name: String,
-    #[serde(default)]
-    body: String,
-    #[serde(default)]
-    html_url: String,
-    #[serde(default)]
-    published_at: String,
-    #[serde(default)]
-    draft: bool,
-    #[serde(default)]
-    prerelease: bool,
-}
-
-/// 读取最新发布并与当前版本比较。草稿与预发布不算更新。
-pub async fn latest_release(fetcher: &Fetcher, current: &str) -> AppResult<UpdateInfo> {
-    let release: GithubRelease = fetcher.get_json(RELEASE_API).await?;
-    if release.draft {
-        return Err(AppError::Network("最新发布仍是草稿".into()));
-    }
-    let latest = release
-        .tag_name
-        .trim()
-        .trim_start_matches(['v', 'V'])
-        .to_string();
-    if latest.is_empty() {
-        return Err(AppError::Format("发布缺少版本号".into()));
-    }
-    Ok(UpdateInfo {
-        current: current.to_string(),
-        available: !release.prerelease && version_greater(&latest, current),
-        latest,
-        notes: if release.body.trim().is_empty() {
-            release.name
-        } else {
-            release.body
-        },
-        url: release.html_url,
-        published_at: release.published_at,
-    })
-}

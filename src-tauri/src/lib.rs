@@ -170,6 +170,8 @@ pub fn run() {
             None,
         ))
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(state)
         .invoke_handler(tauri::generate_handler![
             commands::environment,
@@ -179,7 +181,6 @@ pub fn run() {
             commands::list_packages,
             commands::get_settings,
             commands::save_mirrors,
-            commands::save_registry,
             commands::save_proxy,
             commands::save_prefs,
             commands::switch_ecosystem,
@@ -193,9 +194,6 @@ pub fn run() {
             commands::cleanup_preview,
             commands::cleanup_job,
             commands::open_data_dir,
-            commands::app_version,
-            commands::check_update,
-            commands::open_release_page,
         ])
         .setup(|app| {
             build_tray(app.handle())?;

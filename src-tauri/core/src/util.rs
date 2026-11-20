@@ -53,37 +53,6 @@ pub fn iso_from_secs(secs: i64) -> String {
     )
 }
 
-/// 版本比较：只比数字段（最多三段），忽略 `v` 前缀、预发布与构建后缀。
-/// 解析失败时返回 false —— 宁可漏报更新，也不要把用户导向错误版本。
-pub fn version_greater(remote: &str, current: &str) -> bool {
-    fn segments(version: &str) -> Vec<u64> {
-        let trimmed = version.trim();
-        let trimmed = trimmed
-            .strip_prefix('v')
-            .or_else(|| trimmed.strip_prefix('V'))
-            .unwrap_or(trimmed);
-        let head = trimmed.split(['-', '+']).next().unwrap_or("");
-        head.split('.')
-            .take(3)
-            .map(|part| part.parse::<u64>().unwrap_or(0))
-            .collect()
-    }
-
-    let remote = segments(remote);
-    let current = segments(current);
-    if remote.is_empty() || current.is_empty() {
-        return false;
-    }
-    for index in 0..3 {
-        let a = remote.get(index).copied().unwrap_or(0);
-        let b = current.get(index).copied().unwrap_or(0);
-        if a != b {
-            return a > b;
-        }
-    }
-    false
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -104,14 +73,4 @@ mod tests {
         assert_eq!(iso_from_secs(86_399), "1970-01-01T23:59:59Z");
     }
 
-    #[test]
-    fn version_compare_handles_tags_and_suffixes() {
-        assert!(version_greater("v1.0.1", "1.0.0"));
-        assert!(version_greater("1.2", "1.1.9"));
-        assert!(version_greater("2.0.0-beta.1", "1.9.9"));
-        assert!(!version_greater("1.0.0", "1.0.0"));
-        assert!(!version_greater("v1.0.0", "1.0.1"));
-        assert!(!version_greater("", "1.0.0"));
-        assert!(!version_greater("nightly", "1.0.0"));
-    }
 }

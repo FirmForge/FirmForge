@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Box,
+  LinearProgress,
   Button,
   FormControlLabel,
   IconButton,
@@ -26,7 +27,8 @@ import {
 import { formatTime } from "../format";
 import { engineLabel, useI18n } from "../i18n";
 import { border, ink, labelStyle, paper, pink, slab } from "../styles/tokens";
-import { formatNotes, type UpdateState } from "../update";
+import type { UpdateState } from "../update";
+import { formatNotes } from "../version";
 import type { Environment, MirrorSource, Settings } from "../types";
 
 type Props = {
@@ -54,7 +56,6 @@ function SubHead({ index, title, meta }: { index: string; title: string; meta?: 
 export default function SettingsPage({ settings, env, update, onSettings, onNotify, onError }: Props) {
   const { t } = useI18n();
   const [mirrors, setMirrors] = useState<MirrorSource[]>(settings.mirrors);
-  const [registry, setRegistry] = useState(settings.registry);
   const [proxy, setProxy] = useState(settings.proxy);
   const [saving, setSaving] = useState(false);
   const [autostartOn, setAutostartOn] = useState(false);
@@ -81,7 +82,6 @@ export default function SettingsPage({ settings, env, update, onSettings, onNoti
 
   useEffect(() => {
     setMirrors(settings.mirrors);
-    setRegistry(settings.registry);
     setProxy(settings.proxy);
   }, [settings]);
 
@@ -108,7 +108,6 @@ export default function SettingsPage({ settings, env, update, onSettings, onNoti
     setSaving(true);
     try {
       let updated = await api.saveMirrors(mirrors.map((m) => ({ name: m.name, url: m.url })));
-      updated = await api.saveRegistry(registry);
       updated = await api.saveProxy(proxy);
       onSettings(updated);
       onNotify(t("toast.settingsSaved"), "success");
@@ -117,7 +116,7 @@ export default function SettingsPage({ settings, env, update, onSettings, onNoti
     } finally {
       setSaving(false);
     }
-  }, [mirrors, registry, proxy, onSettings, onNotify, onError, t]);
+  }, [mirrors, proxy, onSettings, onNotify, onError, t]);
 
   const openDataDir = useCallback(async () => {
     try {
@@ -234,36 +233,21 @@ export default function SettingsPage({ settings, env, update, onSettings, onNoti
         </Stack>
       </Panel>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 2, alignItems: "start" }}>
-        <Panel>
-          <SubHead index="03" title={t("settings.registry")} />
-          <FieldRow label={t("settings.registryLabel")} hint={t("settings.registryHint")}>
-            <TextField
-              value={registry}
-              onChange={(e) => setRegistry(e.target.value)}
-              placeholder="docker.m.daocloud.io/immortalwrt"
-              fullWidth
-              slotProps={{ htmlInput: { "aria-label": t("settings.registryLabel") } }}
-            />
-          </FieldRow>
-        </Panel>
-
-        <Panel>
-          <SubHead index="04" title={t("settings.proxy")} />
-          <FieldRow label={t("settings.proxyLabel")} hint={t("settings.proxyHint")}>
-            <TextField
-              value={proxy}
-              onChange={(e) => setProxy(e.target.value)}
-              placeholder="socks5://127.0.0.1:1080"
-              fullWidth
-              slotProps={{ htmlInput: { "aria-label": t("settings.proxyLabel") } }}
-            />
-          </FieldRow>
-        </Panel>
-      </Box>
+      <Panel>
+        <SubHead index="03" title={t("settings.proxy")} />
+        <FieldRow label={t("settings.proxyLabel")} hint={t("settings.proxyHint")}>
+          <TextField
+            value={proxy}
+            onChange={(e) => setProxy(e.target.value)}
+            placeholder="socks5://127.0.0.1:1080"
+            fullWidth
+            slotProps={{ htmlInput: { "aria-label": t("settings.proxyLabel") } }}
+          />
+        </FieldRow>
+      </Panel>
 
       <Panel>
-        <SubHead index="05" title={t("settings.dataDir")} />
+        <SubHead index="04" title={t("settings.dataDir")} />
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: { sm: "center" } }}>
           <Typography sx={{ flex: 1, minWidth: 0, fontSize: 12.5, wordBreak: "break-all" }}>
             {settings.data_dir}
@@ -276,7 +260,7 @@ export default function SettingsPage({ settings, env, update, onSettings, onNoti
       </Panel>
 
       <Panel>
-        <SubHead index="06" title={t("settings.startup")} />
+        <SubHead index="05" title={t("settings.startup")} />
         <FormControlLabel
           control={<Switch checked={autostartOn} onChange={(e) => void toggleAutostart(e.target.checked)} />}
           label={t("settings.autostart")}
@@ -285,7 +269,7 @@ export default function SettingsPage({ settings, env, update, onSettings, onNoti
       </Panel>
 
       <Panel>
-        <SubHead index="07" title={t("update.title")} />
+        <SubHead index="06" title={t("update.title")} />
         <Stack spacing={2}>
           <Stack
             direction={{ xs: "column", sm: "row" }}
@@ -353,14 +337,26 @@ export default function SettingsPage({ settings, env, update, onSettings, onNoti
                   </Box>
                 </>
               ) : null}
-              {update.info.available && update.info.url ? (
-                <Button
-                  size="small"
-                  sx={{ mt: 2 }}
-                  onClick={() => void api.openReleasePage(update.info?.url ?? "")}
-                >
-                  {t("update.open")}
-                </Button>
+              {update.info.available ? (
+                <Stack spacing={1.5} sx={{ mt: 2 }}>
+                  <Button
+                    size="small"
+                    onClick={() => void update.install()}
+                    disabled={update.installing}
+                    aria-busy={update.installing}
+                  >
+                    {update.installing
+                      ? t("update.installing", { percent: update.progress ?? 0 })
+                      : t("update.install")}
+                  </Button>
+                  {update.installing ? (
+                    <LinearProgress
+                      variant={update.progress === null ? "indeterminate" : "determinate"}
+                      value={update.progress ?? 0}
+                    />
+                  ) : null}
+                  <Typography sx={{ fontSize: 11.5 }}>{t("update.restartHint")}</Typography>
+                </Stack>
               ) : null}
             </Box>
           ) : null}

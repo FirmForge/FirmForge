@@ -9,9 +9,9 @@ use tokio::sync::mpsc;
 use wrt_ui_core::error::{AppError, AppResult};
 use wrt_ui_core::models::{
     Artifact, Build, CleanupInfo, Device, Environment, Job, JobEvent, JobStatus, LogEvent,
-    PackagesResult, ProfileInfo, Settings, UpdateInfo, Versions,
+    PackagesResult, ProfileInfo, Settings, Versions,
 };
-use wrt_ui_core::net::{normalize_registry, parse_proxy, valid_mirror};
+use wrt_ui_core::net::{parse_proxy, valid_mirror};
 use wrt_ui_core::scripts;
 use wrt_ui_core::store::{is_firmware, validate_build};
 use wrt_ui_core::util::{iso_now, new_job_id};
@@ -19,26 +19,25 @@ use wrt_ui_core::util::{iso_now, new_job_id};
 // ---------------------------------------------------------------- 只读目录查询
 
 #[tauri::command(rename_all = "snake_case")]
-pub async fn environment(state: State<'_, AppState>) -> Result<Environment, AppError> {
-    // Windows 上优先 Docker，再退回 WSL Containers；探测结果写回状态供构建复用。
-    let kind = runtime::preferred().await;
-    state.set_engine(kind);
+pub async fn environment() -> Result<Environment, AppError> {
+    // 只保留内置 VM 引擎：安装包自带 QEMU 与 Alpine，装完即可构建。
+    let name = runtime::engine_name().to_string();
     let timeout = Duration::from_secs(8);
-    match tokio::time::timeout(timeout, runtime::check(kind)).await {
+    match tokio::time::timeout(timeout, runtime::check()).await {
         Ok(Ok(message)) => Ok(Environment {
-            name: kind.name().to_string(),
+            name,
             available: true,
             message,
         }),
         Ok(Err(e)) => Ok(Environment {
-            name: kind.name().to_string(),
+            name,
             available: false,
             message: e.to_string(),
         }),
         Err(_) => Ok(Environment {
-            name: kind.name().to_string(),
+            name,
             available: false,
-            message: "环境检查超时".to_string(),
+            message: "引擎检查超时".into(),
         }),
     }
 }
@@ -144,19 +143,6 @@ pub async fn save_mirrors(
         .await
 }
 
-#[tauri::command(rename_all = "snake_case")]
-pub async fn save_registry(
-    state: State<'_, AppState>,
-    registry: String,
-) -> Result<Settings, AppError> {
-    let registry = normalize_registry(&registry)?;
-    state
-        .update_settings(|s| {
-            s.registry = registry;
-            Ok(())
-        })
-        .await
-}
 
 #[tauri::command(rename_all = "snake_case")]
 pub async fn save_proxy(state: State<'_, AppState>, proxy: String) -> Result<Settings, AppError> {
@@ -241,7 +227,6 @@ pub async fn create_job(
 ) -> Result<Job, AppError> {
     let settings = state.settings().await;
     build.ecosystem = Some(settings.ecosystem);
-    build.registry = settings.registry.clone();
     build.mirror = build.mirror.trim_end_matches('/').to_string();
     validate_build(&build)?;
 
@@ -306,9 +291,8 @@ pub async fn cancel_job(
         .set_status(&id, JobStatus::Cancelled, "已取消", "")
         .await;
     emit_job(&app, &id, &jobs);
-    let kind = state.engine();
     let store = state.store.clone();
-    let _ = runtime::remove_job_container(kind, &id).await;
+    let _ = runtime::remove_job(&id).await;
     let _ = store.ensure_job_dir(&id);
     Ok(())
 }
@@ -456,15 +440,9 @@ pub async fn cleanup_job(state: State<'_, AppState>, id: String) -> Result<u64, 
     let dir = store.output_dir(&id);
     let bytes = dir_size(&dir).await;
     tokio::fs::remove_dir_all(&dir).await.ok();
-    let kind = state.engine();
     let mut failures = Vec::new();
-    if !job.image.is_empty() {
-        if let Err(e) = runtime::remove_job_container(kind, &id).await {
-            failures.push(format!("删除容器失败: {e}"));
-        }
-        if let Err(e) = runtime::remove_image(kind, &job.image).await {
-            failures.push(format!("删除镜像失败: {e}"));
-        }
+    if let Err(e) = runtime::remove_job(&id).await {
+        failures.push(format!("结束 VM 进程失败: {e}"));
     }
     if !failures.is_empty() {
         return Err(AppError::Engine(failures.join("；")));
@@ -589,28 +567,16 @@ async fn run_job_inner(
     store.append_log(id, "开始构建\n")?;
 
     set_state(app, state, id, JobStatus::Running, "检查构建环境", "").await;
-    let kind = state.engine();
-    runtime::check(kind)
+    runtime::check()
         .await
         .map_err(|e| AppError::Engine(e.to_string()))?;
 
     set_state(app, state, id, JobStatus::Running, "检查设备和构建镜像", "").await;
-    // 内置 VM 引擎直接拉 ImageBuilder，不需要容器镜像与 digest 钉住。
-    let (image, revision) = if matches!(kind, runtime::EngineKind::Qemu) {
-        store.append_log(
-            id,
-            "内置 VM 引擎：直接使用 ImageBuilder 构建，跳过容器镜像校验\n",
-        )?;
-        (String::new(), String::new())
-    } else {
-        let fetcher = state.fetcher().await;
-        let (image, revision) =
-            wrt_ui_core::upstream::preflight(&fetcher, build, &state.hub_base).await?;
-        let image = wrt_ui_core::net::image_reference(&build.registry, &image);
-        store.append_log(id, &format!("已确认构建镜像: {image}\n"))?;
-        state.set_image(id, &image).await;
-        (image, revision)
-    };
+    // 内置 VM 引擎直接拉 ImageBuilder，不需要容器镜像、digest 与镜像加速前缀。
+    store.append_log(
+        id,
+        "内置 VM 引擎：直接使用 ImageBuilder 构建，跳过容器镜像校验\n",
+    )?;
 
     set_state(app, state, id, JobStatus::Running, "下载镜像并构建", "").await;
     let mut packages = build.packages.clone();
@@ -668,8 +634,6 @@ async fn run_job_inner(
 
     let spec = runtime::Spec {
         job_id: id.to_string(),
-        image: image.clone(),
-        revision,
         version: build.version.clone(),
         target: build.target.clone(),
         ecosystem: build.ecosystem.unwrap_or_default(),
@@ -680,7 +644,7 @@ async fn run_job_inner(
         files,
     };
     let out_dir = store.output_dir(id);
-    let run_result = runtime::run(kind, &spec, &log, &out_dir).await;
+    let run_result = runtime::run(&spec, &log, &out_dir).await;
     drop(log);
     let _ = flusher.await;
     run_result?;
@@ -708,46 +672,6 @@ async fn run_job_inner(
         ));
     }
     Ok(())
-}
-
-// ---------------------------------------------------------------- 更新检查
-
-/// 当前应用版本，供界面在检查失败时仍能显示版本号。
-#[tauri::command(rename_all = "snake_case")]
-pub fn app_version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
-}
-
-/// 检查 GitHub 上的最新发布。版本号由 cargo 包版本注入，避免前后端各写一份。
-#[tauri::command(rename_all = "snake_case")]
-pub async fn check_update(state: State<'_, AppState>) -> Result<UpdateInfo, AppError> {
-    let fetcher = state.fetcher().await;
-    wrt_ui_core::upstream::latest_release(&fetcher, env!("CARGO_PKG_VERSION")).await
-}
-
-/// 打开发布页。只接受本仓库的 releases 链接，避免把 IPC 变成任意 URL 打开器。
-#[tauri::command(rename_all = "snake_case")]
-pub async fn open_release_page(url: String) -> Result<(), AppError> {
-    const PREFIX: &str = "https://github.com/MinimaxFlora/WRT-UI/releases";
-    // 只允许纯 ASCII 的 https 链接，避免把控制字符或引号带进 ShellExecute。
-    let clean = url.is_ascii() && !url.bytes().any(|b| b <= b' ' || b == b'"' || b == 0x5c);
-    if !url.starts_with(PREFIX) || !clean {
-        return Err(AppError::Invalid("仅允许打开 WRT-UI 的发布页".into()));
-    }
-    #[cfg(windows)]
-    {
-        // rundll32 走 ShellExecute，等价于双击链接；不经 cmd，无需引号转义。
-        std::process::Command::new("rundll32")
-            .args(["url.dll,FileProtocolHandler", &url])
-            .spawn()
-            .map(|_| ())
-            .map_err(|e| AppError::Message(format!("无法打开发布页: {e}")))
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = url;
-        Err(AppError::Message("当前平台不支持自动打开浏览器".into()))
-    }
 }
 
 #[cfg(test)]

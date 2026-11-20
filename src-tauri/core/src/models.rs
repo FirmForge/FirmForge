@@ -34,8 +34,6 @@ pub struct Build {
     #[serde(default)]
     pub remove: Vec<String>,
     pub mirror: String,
-    #[serde(default)]
-    pub registry: String,
     pub hostname: String,
     pub address: String,
     pub timezone: String,
@@ -156,8 +154,6 @@ pub struct Settings {
     pub ecosystem: Ecosystem,
     pub mirrors: Vec<MirrorSource>,
     #[serde(default)]
-    pub registry: String,
-    #[serde(default)]
     pub proxy: String,
     /// 界面主题：light / dark。与语言一起保存在 settings.json，重启后由前端回填。
     #[serde(default = "default_theme")]
@@ -215,13 +211,3 @@ pub struct LogEvent<'a> {
     pub text: &'a str,
 }
 
-/// 更新检查结果：只描述「是否有新版本」，不负责下载与安装。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UpdateInfo {
-    pub current: String,
-    pub latest: String,
-    pub available: bool,
-    pub notes: String,
-    pub url: String,
-    pub published_at: String,
-}
