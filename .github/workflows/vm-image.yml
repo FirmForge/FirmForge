@@ -34,7 +34,7 @@ jobs:
           curl -fsSL --retry 3 -o /tmp/ubuntu-base.tar.gz "$URL" || curl -fsSL --retry 3 -o /tmp/ubuntu-base.tar.gz "$MIRROR"
           sudo mkdir -p root
           sudo tar -xzf /tmp/ubuntu-base.tar.gz -C root
-          du -sh root
+          sudo du -sh root
 
       - name: 安装构建依赖（chroot）
         run: |
