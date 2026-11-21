@@ -294,11 +294,11 @@ rm -rf /tmp/files
 cp -R /host/files /tmp/files
 chmod -R 755 /tmp/files/etc/uci-defaults 2>/dev/null || true
 log "开始构建固件"
-make image PROFILE={profile} PACKAGES={packages} FILES=/tmp/files BIN_DIR=/host/output {rootfs}
+make FAKEROOT=/usr/bin/fakeroot TMPDIR=/tmp image PROFILE={profile} PACKAGES={packages} FILES=/tmp/files BIN_DIR=/host/output {rootfs}
 rc=$?
 if [ $rc -ne 0 ]; then
   log "首次构建失败（退出码 $rc），重试一次"
-  make image PROFILE={profile} PACKAGES={packages} FILES=/tmp/files BIN_DIR=/host/output {rootfs}
+  make FAKEROOT=/usr/bin/fakeroot TMPDIR=/tmp image PROFILE={profile} PACKAGES={packages} FILES=/tmp/files BIN_DIR=/host/output {rootfs}
   rc=$?
 fi
 log "make 退出码 $rc"

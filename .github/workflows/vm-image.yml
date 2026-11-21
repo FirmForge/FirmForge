@@ -46,7 +46,7 @@ jobs:
           sudo chroot root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
             -o Dpkg::Options::=--force-confnew --no-install-recommends \
             wget ca-certificates zstd make gawk patch python3 perl file unzip xz-utils \
-            gzip bzip2 coreutils bash sed grep findutils diffutils
+            gzip bzip2 fakeroot coreutils bash sed grep findutils diffutils
           sudo umount root/proc
           sudo umount root/dev
 
