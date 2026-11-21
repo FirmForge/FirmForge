@@ -294,12 +294,17 @@ fi
 rm -rf "$WORK/files"
 cp -R /host/files "$WORK/files"
 chmod -R 755 "$WORK/files/etc/uci-defaults" 2>/dev/null || true
+# VM 里已经是 root，不需要 fakeroot 伪造权限；它的守护进程在这种环境下连不上
+# （libfakeroot: connect: Connection timed out），直接把配方里的调用摘掉。
+for f in include/rootfs.mk include/package-pack.mk include/image.mk; do
+  [ -f "$f" ] && sed -i 's/$(FAKEROOT) //g' "$f"
+done
 log "开始构建固件"
-make FAKEROOT=/usr/bin/fakeroot TMPDIR=/tmp image PROFILE={profile} PACKAGES={packages} FILES="$WORK/files" BIN_DIR=/host/output {rootfs}
+make TMPDIR=/tmp image PROFILE={profile} PACKAGES={packages} FILES="$WORK/files" BIN_DIR=/host/output {rootfs}
 rc=$?
 if [ $rc -ne 0 ]; then
   log "首次构建失败（退出码 $rc），重试一次"
-  make FAKEROOT=/usr/bin/fakeroot TMPDIR=/tmp image PROFILE={profile} PACKAGES={packages} FILES="$WORK/files" BIN_DIR=/host/output {rootfs}
+  make TMPDIR=/tmp image PROFILE={profile} PACKAGES={packages} FILES="$WORK/files" BIN_DIR=/host/output {rootfs}
   rc=$?
 fi
 log "make 退出码 $rc"
