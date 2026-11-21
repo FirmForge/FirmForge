@@ -70,14 +70,15 @@ jobs:
               sudo ln -sf /usr/bin/busybox "root/usr/bin/$a"
             fi
           done
-          sudo mkdir -p root/host root/proc root/sys root/dev root/root
+          sudo mkdir -p root/host root/proc root/sys root/dev root/root root/tmp
           sudo chmod 1777 root/tmp
+          sudo sed -i 's/\[wrt-ui\]/[firmforge]/g' root/init || true
 
       - name: 打包 initramfs
         run: |
           set -euo pipefail
           cd root
-          sudo find . -xdev | grep -v -E '^\./(proc|sys|dev|host|tmp)(/|$)' \
+          sudo find . -xdev | grep -v -E '^\./(proc|sys|dev|host|tmp)/' \
             | sudo cpio -o -H newc --quiet | gzip -9 > ../initramfs.cpio.gz
           cd ..
           ls -lh initramfs.cpio.gz

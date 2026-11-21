@@ -263,7 +263,8 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 log() {{ echo "[build] $*"; }}
 
 log "准备构建环境"
-mkdir -p /host/output || exit 11
+mkdir -p /tmp /host/output 2>/dev/null || mount -t tmpfs tmpfs /tmp
+[ -d /tmp ] || {{ log "虚拟机缺少 /tmp，请更新镜像"; exit 10; }}
 missing=""
 for t in wget tar zstd make gzip unzip file python3 sed grep patch find; do
   command -v "$t" >/dev/null 2>&1 || missing="$missing $t"
