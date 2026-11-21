@@ -264,6 +264,22 @@ log() {{ echo "[build] $*"; }}
 
 log "准备构建环境"
 mkdir -p /tmp /host/output 2>/dev/null || mount -t tmpfs tmpfs /tmp
+# 构建在独立磁盘上做：ramfs 放不下 ImageBuilder + 全部软件包，
+# 内存会被撑爆，fakeroot 守护进程跟着被回收（libfakeroot: connect timed out）。
+if [ -b /dev/vdb ]; then
+  # ext4 是模块，按依赖顺序加载（没有 modules.dep，直接 insmod）
+  for m in crc16 mbcache jbd2 ext4; do
+    ko=$(find /wrtmods -name "$m.ko*" 2>/dev/null | head -1)
+    [ -n "$ko" ] && insmod "$ko" 2>/dev/null
+  done
+  command -v mkfs.ext4 >/dev/null 2>&1 || {{ log "镜像缺少 mkfs.ext4（需 e2fsprogs）"; exit 15; }}
+  mkfs.ext4 -q -F /dev/vdb >/dev/null 2>&1 || {{ log "构建盘格式化失败"; exit 15; }}
+  mkdir -p /build && mount /dev/vdb /build || {{ log "构建盘挂载失败"; exit 16; }}
+  WORK=/build
+else
+  WORK=/tmp
+fi
+log "构建目录: $WORK ($(df -h "$WORK" | tail -1 | awk '{{print $2" 可用 "$4}}'))"
 [ -d /tmp ] || {{ log "虚拟机缺少 /tmp，请更新镜像"; exit 10; }}
 missing=""
 for t in wget tar zstd make gzip unzip file python3 sed grep patch find; do
@@ -274,13 +290,13 @@ done
 log "临时空间: $(df -h /tmp | tail -1)"
 log "下载 ImageBuilder"
 log "{url}"
-wget -O /tmp/ib.tar.zst "{url}" 2>&1 | tail -1
-if [ ! -s /tmp/ib.tar.zst ]; then log "ImageBuilder 下载失败"; exit 12; fi
+wget -O "$WORK/ib.tar.zst" "{url}" 2>&1 | tail -1
+if [ ! -s "$WORK/ib.tar.zst" ]; then log "ImageBuilder 下载失败"; exit 12; fi
 log "解压 ImageBuilder"
-tar --zstd -xf /tmp/ib.tar.zst -C /tmp || {{ log "解压失败（临时空间不足？）"; exit 13; }}
-IB=$(ls -d /tmp/{eco}-imagebuilder-* 2>/dev/null | head -1)
+tar --zstd -xf "$WORK/ib.tar.zst" -C "$WORK" || {{ log "解压失败（临时空间不足？）"; exit 13; }}
+IB=$(ls -d "$WORK"/{eco}-imagebuilder-* 2>/dev/null | head -1)
 [ -n "$IB" ] && cd "$IB" || {{ log "未找到解压目录"; exit 14; }}
-rm -f /tmp/ib.tar.zst
+rm -f "$WORK/ib.tar.zst"
 for f in repositories repositories.conf include/version.mk; do
   if [ -f "$f" ]; then
     sed -i "s|https://downloads.immortalwrt.org|{mirror}|g;s|https://downloads.openwrt.org|{mirror}|g;s|https://mirrors.vsean.net/openwrt|{mirror}|g" "$f"
@@ -290,15 +306,15 @@ log "软件源已切到 {mirror}"
 if grep -q "REVISION:=" include/version.mk 2>/dev/null; then
   log "版本信息: $(grep -m1 'REVISION:=' include/version.mk)"
 fi
-rm -rf /tmp/files
-cp -R /host/files /tmp/files
-chmod -R 755 /tmp/files/etc/uci-defaults 2>/dev/null || true
+rm -rf "$WORK/files"
+cp -R /host/files "$WORK/files"
+chmod -R 755 "$WORK/files/etc/uci-defaults" 2>/dev/null || true
 log "开始构建固件"
-make FAKEROOT=/usr/bin/fakeroot TMPDIR=/tmp image PROFILE={profile} PACKAGES={packages} FILES=/tmp/files BIN_DIR=/host/output {rootfs}
+make FAKEROOT=/usr/bin/fakeroot TMPDIR=/tmp image PROFILE={profile} PACKAGES={packages} FILES="$WORK/files" BIN_DIR=/host/output {rootfs}
 rc=$?
 if [ $rc -ne 0 ]; then
   log "首次构建失败（退出码 $rc），重试一次"
-  make FAKEROOT=/usr/bin/fakeroot TMPDIR=/tmp image PROFILE={profile} PACKAGES={packages} FILES=/tmp/files BIN_DIR=/host/output {rootfs}
+  make FAKEROOT=/usr/bin/fakeroot TMPDIR=/tmp image PROFILE={profile} PACKAGES={packages} FILES="$WORK/files" BIN_DIR=/host/output {rootfs}
   rc=$?
 fi
 log "make 退出码 $rc"
@@ -335,6 +351,11 @@ exit $rc
         std::fs::create_dir_all(&work)?;
         std::fs::create_dir_all(work.join("output"))?;
 
+        // 构建盘：宿主上的稀疏文件，VM 里格式化成 ext4 挂到 /build。
+        let disk = work.join("build.img");
+        if !disk.exists() {
+            std::fs::File::create(&disk)?.set_len(8 * 1024 * 1024 * 1024)?;
+        }
         std::fs::write(work.join("run.sh"), build_script(spec))?;
         let mut wrote = 0;
         for (name, contents) in &spec.files {
@@ -382,6 +403,11 @@ exit $rc
             .arg(format!(
                 "file=fat:rw:{},format=raw,if=virtio",
                 work.display()
+            ))
+            .arg("-drive")
+            .arg(format!(
+                "file={},format=raw,if=virtio",
+                disk.display()
             ))
             .arg("-netdev")
             .arg("user,id=n0")
