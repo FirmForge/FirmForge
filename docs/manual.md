@@ -10,11 +10,11 @@ FirmForge 是一个 Windows 桌面应用，用 OpenWrt / ImmortalWrt 官方 Imag
 ## 1. 安装与更新
 
 1. 从 [Releases](https://github.com/FirmForge/FirmForge/releases) 下载 `FirmForge_<版本>_x64-setup.exe`。
-2. 双击安装，默认装到 `D:\FirmForge\`（可在安装向导里改）。
-3. 首次启动会自动检测内置 VM 引擎是否可用，右上角显示状态。
+2. 双击安装，默认装到当前用户的 `AppData\Local\FirmForge`（安装向导里可改）。
+3. 首次启动会检测内置 VM 引擎；**首次构建会自动下载约 175 MiB 的虚拟机镜像**，之后走本地缓存。
 
 **自动更新**：应用启动后静默检查一次（1 小时缓存、24 小时重查），发现新版本时页头出现粉色徽标。
-到「设置 → 更新与链接」点「检查更新」可以看到发布说明，点「下载并安装」后自动重启，装完版本即更新。
+到「设置 → 06 更新」点「检查更新」可以看到发布说明，点「下载并安装」后自动重启，装完版本即更新。
 安装包带 minisign 签名，签名不匹配的包不会被安装。
 
 ---
@@ -66,61 +66,55 @@ FirmForge 是一个 Windows 桌面应用，用 OpenWrt / ImmortalWrt 官方 Imag
 
 ## 4. 设置说明
 
-设置页左侧是分组导航，右侧只显示当前分组，不用一路往下滚。
+设置页是一列纵向面板，编号 01 到 09：
 
-| 分组 | 内容 |
-|---|---|
-| 外观 | 主题（亮色 / 暗色 / 跟随系统）、界面语言（10 种） |
-| 构建来源 | 生态（ImmortalWrt / OpenWrt）、镜像源列表（可增删排序）、查询代理 |
-| 系统与工具 | 数据目录（可更改）、开机自启、开发者工具、UWP 环回豁免 |
-| 更新与链接 | 检查更新、安装更新、GitHub / 手册 / Telegram 入口 |
+- **01 固件生态**：ImmortalWrt / OpenWrt，切换会重置软件源。
+- **02 软件源**：可增删的镜像列表（必须 HTTPS），同时用于构建与固件运行。
+- **03 查询代理**：socks5 / http 代理，用于访问 GitHub 与镜像。
+- **04 数据目录**：默认 `%LOCALAPPDATA%\FirmForge`，可一键更改（校验可写 → 迁移配置与历史 → 写指针文件 → 自动重启）。
+- **05 启动与窗口**：开机自启、单实例、窗口位置记忆、关闭收进托盘。
+- **06 更新**：当前版本、检查更新、发布说明、下载安装。
+- **07 主题设置**：主要 / 次要 / 成功 / 警告 / 错误五色 + 十六进制输入、字体系列（等宽 / 无衬线 / 系统）、CSS 注入（「编辑 CSS」打开带行号的编辑器），保存立即生效并持久化。
+- **08 开发者设置**：打开 WebView 调试器、打开数据目录。
+- **09 UWP 设置**：读写系统的 UWP 环回豁免名单（`CheckNetIsolation LoopbackExempt`），填入包族名即可添加。
 
-### 主题
+### 数据目录内容
 
-暗色只反转结构色与文字（黑→白、白→黑），四支强调色保持不变；「跟随系统」会随 Windows 明暗实时切换。
-选择写入 `settings.json`，重启后保持。
-
-### 数据目录
-
-默认 `%LOCALAPPDATA%\FirmForge\`，存放：
+默认目录 `%LOCALAPPDATA%\FirmForge\`：
 
 ```
 settings.json     配置
 jobs.json         构建历史
 jobs\<id>\build.log
 jobs\<id>\output\  固件产物
+engine\vm\           下载的虚拟机镜像
 ```
 
-点「更改目录」选一个新位置：会校验可写、把配置与历史带过去、写入指针文件并自动重启。
-想回到默认目录，重选默认目录即可。
-
-### 开发者工具
-
-打开 WebView 调试器（Network / Console），排查界面或请求问题用；关掉不影响正在进行的构建。
-
-### UWP 环回豁免
-
-让 UWP 应用（如商店版客户端）访问本机服务。填入包族名（例如 `Microsoft.WindowsStore_8wekyb3d8bbwe`）后点「添加」，
-名单来自系统 `CheckNetIsolation LoopbackExempt -s`，只在 Windows 生效。
+点「更改目录」选新位置：校验可写、迁移配置与历史、写指针文件并自动重启；想回默认目录，重选默认目录即可。
 
 ---
 
 ## 5. 常见问题
 
-**Q：启动提示「内置 VM 引擎不可用」？**
-A：内置 VM 依赖随应用分发的 QEMU 资源。确认安装目录完整（`resources\qemu` 存在），或用 `make bundle` 重新打包；
-杀毒软件隔离了 `qemu-system-*` 也会导致该提示。
+**Q：提示「内置 VM 引擎不可用」？**
+A：确认安装目录完整（`resources\qemu`、`resources\vm` 存在）；首次构建需要能访问 GitHub（下载虚拟机镜像）。
 
 **Q：设备列表是空的？**
-A：镜像里没有当前版本的 `targets/<target>/profiles.json`。检查「设置 → 构建来源」里的镜像地址能否打开
+A：镜像里没有当前版本的 `targets/<target>/profiles.json`。检查「设置 → 02 软件源」里的镜像地址能否打开
 `<镜像>/releases/<版本>/targets/`，或换一个镜像。
 
 **Q：软件包列表提示某些源读取失败？**
 A：镜像缺少某个 feed 的 `index.json`（常见于刚发布的快照版）。构建仍可继续，只是那一类包不可选。
 
+**Q：构建卡在「解压 ImageBuilder」或报 `libfakeroot: connect`？**
+A：虚拟机内存不足。应用按物理内存的 75% 分配（上限 12 GiB），宿主剩余内存太少时先关掉其他程序再试。
+
+**Q：日志里出现 `Image file ... is too big`？**
+A：所选设备 flash 装不下当前包集合，减少额外软件包，或换 flash 更大的设备。
+
 **Q：构建很慢？**
 A：首次构建要下载 ImageBuilder（几十 MB）与全部索引；同一版本第二次构建会复用缓存。
-开启代理（设置 → 构建来源 → 查询代理）能明显加快 GitHub 与镜像的访问。
+开启代理（设置 → 03 查询代理）能明显加快 GitHub 与镜像的访问。
 
 **Q：产物在哪？**
 A：结果页「打开产物目录」，或「构建历史」里对应任务。默认在 `%LOCALAPPDATA%\FirmForge\jobs\<id>\output\`。
