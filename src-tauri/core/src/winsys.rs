@@ -95,14 +95,14 @@ pub fn memory_mb() -> Option<(u64, u64)> {
 /// ImageBuilder 的根文件系统是 ramfs，解压大 target（filogic）需要 ~1 GiB 以上。
 /// 可用内存不足时按“峰值 8 GiB、至少 2 GiB、给宿主留 1.5 GiB”取较小值。
 pub fn vm_memory_mb() -> u64 {
-    const WANT: u64 = 8192;
+    const WANT: u64 = 12288;
     const MIN: u64 = 4096;
     let Some((total, _avail)) = memory_mb() else {
         return MIN;
     };
     // 根文件系统是 ramfs，ImageBuilder 解压后要 1.5 GiB 以上；
     // 按物理内存的 55% 给，宿主内存紧张时由 Windows 换页兜底。
-    (total * 55 / 100).clamp(MIN, WANT)
+    (total * 75 / 100).clamp(MIN, WANT)
 }
 
 #[cfg(test)]
