@@ -36,7 +36,7 @@ import type { Environment, Settings } from "./types";
 type Page = "build" | "history" | "settings";
 
 const LINKS: { url: string; labelKey: MessageKey; icon: typeof HelpOutlineIcon }[] = [
-  { url: "https://firmforge.github.io/FirmForge/", labelKey: "link.wiki", icon: HelpOutlineIcon },
+  { url: "https://github.com/FirmForge/FirmForge/wiki", labelKey: "link.wiki", icon: HelpOutlineIcon },
   { url: "https://t.me/MomoFlora", labelKey: "link.telegram", icon: SendIcon },
   { url: "https://github.com/FirmForge/FirmForge", labelKey: "link.github", icon: GitHubIcon },
 ];
