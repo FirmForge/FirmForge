@@ -1,6 +1,6 @@
 [package]
 name = "wrt-ui"
-version = "1.3.0"
+version = "1.3.1"
 description = "WRT-UI desktop firmware builder"
 edition = "2021"
 
@@ -32,6 +32,7 @@ tauri-plugin-dialog = "3.0.0-alpha.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs", "time", "sync", "io-util"] }
+reqwest = { version = "0.12", default-features = false, features = ["native-tls"] }
 tar = "0.4"
 dirs = "6"
 

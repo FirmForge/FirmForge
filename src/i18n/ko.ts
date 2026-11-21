@@ -299,6 +299,7 @@ export const ko: Messages = {
   "theme.color.warning": "경고",
   "theme.color.error": "오류",
   "settings.openDataDir": "데이터 폴더 열기",
+  "common.preparingVm": "가상 머신 이미지 준비 중(최초 약 60 MiB)…",
   "boot.loading": "설정과 실행 환경을 불러오는 중",
   "lang.label": "언어",
   "env.checking": "확인 중",

@@ -299,6 +299,7 @@ export const it: Messages = {
   "theme.color.warning": "Avviso",
   "theme.color.error": "Errore",
   "settings.openDataDir": "Cartella dati",
+  "common.preparingVm": "Preparazione immagine VM (≈60 MiB al primo avvio)…",
   "boot.loading": "Lettura impostazioni e ambiente",
   "lang.label": "Lingua",
   "env.checking": "Verifica",

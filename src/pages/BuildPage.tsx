@@ -280,6 +280,8 @@ export default function BuildPage({ settings, env, onNotify }: Props) {
     setError("");
     setBusy(true);
     try {
+      // 首次构建前确保 glibc 版虚拟机镜像就位（约 60 MiB，之后走本地缓存）。
+      await api.ensureVmImage();
       const build: Build = {
         ...draft,
         ecosystem: settings.ecosystem,

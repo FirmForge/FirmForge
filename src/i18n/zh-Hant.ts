@@ -299,6 +299,7 @@ export const zhHant: Messages = {
   "theme.color.warning": "警告顏色",
   "theme.color.error": "錯誤顏色",
   "settings.openDataDir": "開啟資料目錄",
+  "common.preparingVm": "正在準備虛擬機映像（首次約 60 MiB）…",
   "boot.loading": "正在讀取設定與執行環境",
   "lang.label": "語言",
   "env.checking": "檢查中",

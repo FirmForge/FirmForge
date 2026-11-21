@@ -299,6 +299,7 @@ export const ja: Messages = {
   "theme.color.warning": "警告",
   "theme.color.error": "エラー",
   "settings.openDataDir": "データフォルダー",
+  "common.preparingVm": "仮想マシンイメージを準備中（初回 約 60 MiB）…",
   "boot.loading": "設定と実行環境を読み込み中",
   "lang.label": "言語",
   "env.checking": "確認中",

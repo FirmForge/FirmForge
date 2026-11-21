@@ -299,6 +299,7 @@ export const ru: Messages = {
   "theme.color.warning": "Предупреждение",
   "theme.color.error": "Ошибка",
   "settings.openDataDir": "Папка данных",
+  "common.preparingVm": "Подготовка образа виртуальной машины (≈60 МиБ при первом запуске)…",
   "boot.loading": "Чтение настроек и окружения",
   "lang.label": "Язык",
   "env.checking": "Проверка",

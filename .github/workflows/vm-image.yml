@@ -1,0 +1,93 @@
+name: VM image
+
+# 生成内置虚拟机使用的 glibc 根文件系统（initramfs）。
+# 背景：ImageBuilder 的 host 工具（apk / fakeroot / openssl）都是 glibc 构建，
+# 跑在 musl 的 Alpine 里会失败（libfakeroot: connect: Connection timed out），
+# 所以这里用 Ubuntu base + 构建依赖打一份，随 Release 标签 `vm` 分发，应用按需下载。
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vm-image
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 准备 Ubuntu base
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl cpio gzip
+          URL=https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-amd64.tar.gz
+          MIRROR=https://mirror.nju.edu.cn/ubuntu-cdimage/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-amd64.tar.gz
+          curl -fsSL --retry 3 -o /tmp/ubuntu-base.tar.gz "$URL" || curl -fsSL --retry 3 -o /tmp/ubuntu-base.tar.gz "$MIRROR"
+          sudo mkdir -p root
+          sudo tar -xzf /tmp/ubuntu-base.tar.gz -C root
+          du -sh root
+
+      - name: 安装构建依赖（chroot）
+        run: |
+          set -euo pipefail
+          sudo cp /etc/resolv.conf root/etc/resolv.conf
+          sudo mount --bind /dev root/dev
+          sudo mount -t proc proc root/proc
+          sudo chroot root apt-get update -qq
+          sudo chroot root env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+            -o Dpkg::Options::=--force-confnew --no-install-recommends \
+            wget ca-certificates zstd make gawk patch python3 perl file unzip xz-utils \
+            gzip coreutils bash sed grep findutils diffutils
+          sudo umount root/proc
+          sudo umount root/dev
+
+      - name: 合入内核模块与 init
+        run: |
+          set -euo pipefail
+          mkdir -p old
+          (cd old && gzip -dc ../src-tauri/resources/vm/initramfs.cpio.gz | cpio -idm --quiet)
+          sudo cp old/init root/init
+          sudo chmod 755 root/init
+          # busybox 是 musl 动态链接，加载器一起带上，init 里的 insmod/losetup 等 applet 才可用
+          sudo cp old/bin/busybox root/usr/bin/busybox
+          sudo cp old/lib/ld-musl* root/lib/ 2>/dev/null || true
+          sudo cp old/lib/libc.musl* root/lib/ 2>/dev/null || true
+          sudo cp -a old/wrtmods root/wrtmods
+          for a in modprobe insmod rmmod lsmod mdev losetup ifconfig ip udhcpc poweroff reboot; do
+            if [ ! -e "root/usr/bin/$a" ] && [ ! -e "root/usr/sbin/$a" ] && [ ! -e "root/sbin/$a" ]; then
+              sudo ln -sf /usr/bin/busybox "root/usr/bin/$a"
+            fi
+          done
+          sudo mkdir -p root/host root/proc root/sys root/dev root/root
+          sudo chmod 1777 root/tmp
+
+      - name: 打包 initramfs
+        run: |
+          set -euo pipefail
+          cd root
+          sudo find . -xdev | grep -v -E '^\./(proc|sys|dev|host|tmp)(/|$)' \
+            | sudo cpio -o -H newc --quiet | gzip -9 > ../initramfs.cpio.gz
+          cd ..
+          ls -lh initramfs.cpio.gz
+          sha256sum initramfs.cpio.gz | awk '{print $1}' > initramfs.sha256
+          cat initramfs.sha256
+
+      - name: 发布到 vm 标签
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if ! gh release view vm >/dev/null 2>&1; then
+            gh release create vm --title "内置虚拟机镜像" \
+              --notes "ImageBuilder 构建用的 glibc 根文件系统，由 CI 从 Ubuntu base 生成。应用首次构建时自动下载。"
+          fi
+          gh release upload vm initramfs.cpio.gz initramfs.sha256 --clobber

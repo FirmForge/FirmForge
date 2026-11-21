@@ -137,9 +137,10 @@ pub mod qemu {
     pub async fn check() -> AppResult<String> {
         let qemu =
             qemu_dir().ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：找不到 qemu".into()))?;
-        let vm = vm_dir()
-            .ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：缺少内核或 initramfs".into()))?;
-        let size = std::fs::metadata(vm.join(INITRAMFS))
+        vm_dir().ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：缺少内核".into()))?;
+        let initramfs = initramfs_path()
+            .ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：缺少 initramfs".into()))?;
+        let size = std::fs::metadata(&initramfs)
             .map(|m| m.len() / 1048576)
             .unwrap_or(0);
         Ok(format!(
@@ -147,6 +148,88 @@ pub mod qemu {
             qemu.display(),
             size
         ))
+    }
+
+
+    /// 内置虚拟机的 initramfs：优先用数据目录下已下载的 glibc 版本，
+    /// 其次回退到安装包里随附的那一份。
+    pub fn initramfs_path() -> Option<PathBuf> {
+        let local = engine_vm_dir().join(INITRAMFS);
+        if local.is_file() {
+            return Some(local);
+        }
+        vm_dir().map(|dir| dir.join(INITRAMFS))
+    }
+
+    /// 数据目录里的引擎目录（下载的 initramfs 与内核放这里）。
+    pub fn engine_vm_dir() -> PathBuf {
+        wrt_ui_core::store::data_dir().join("engine").join("vm")
+    }
+
+    /// 确保 glibc 版 initramfs 就位：没有就下载，并把随包的内核一起放过去。
+    ///
+    /// 包里自带的是 Alpine(musl) 版本，跑不了 ImageBuilder 的 glibc host 工具，
+    /// 所以真正的构建镜像由 CI 产出、挂在 Release 的 `vm` 标签上。
+    pub async fn ensure_initramfs() -> AppResult<PathBuf> {
+        let dir = engine_vm_dir();
+        let target = dir.join(INITRAMFS);
+        if is_glibc_image(&target) {
+            return Ok(target);
+        }
+        std::fs::create_dir_all(&dir)?;
+
+        let urls = [
+            "https://github.com/MinimaxFlora/WRT-UI/releases/download/vm/initramfs.cpio.gz",
+            "https://ghproxy.net/https://github.com/MinimaxFlora/WRT-UI/releases/download/vm/initramfs.cpio.gz",
+        ];
+        let client = reqwest::Client::builder()
+            .user_agent("WRT-UI")
+            .timeout(std::time::Duration::from_secs(1800))
+            .build()
+            .map_err(|e| AppError::Engine(e.to_string()))?;
+
+        let tmp = dir.join("initramfs.download");
+        let mut last = String::new();
+        for url in urls {
+            match client.get(url).send().await {
+                Ok(resp) if resp.status().is_success() => {
+                    let bytes = resp
+                        .bytes()
+                        .await
+                        .map_err(|e| AppError::Engine(format!("下载虚拟机镜像失败: {e}")))?;
+                    if bytes.len() < 8 * 1024 * 1024 || bytes[0] != 0x1f || bytes[1] != 0x8b {
+                        last = format!("镜像内容无效（{} 字节）", bytes.len());
+                        continue;
+                    }
+                    std::fs::write(&tmp, &bytes)?;
+                    std::fs::rename(&tmp, &target)?;
+                    break;
+                }
+                Ok(resp) => last = format!("HTTP {}", resp.status()),
+                Err(e) => last = e.to_string(),
+            }
+        }
+        if !is_glibc_image(&target) {
+            return Err(AppError::Engine(format!(
+                "无法获取虚拟机镜像（{last}）。请检查网络，或在设置里更换镜像后重试。"
+            )));
+        }
+
+        // 内核跟着放一份，vm_dir() 要求两者同目录。
+        if !dir.join(KERNEL).is_file() {
+            if let Some(src) = vm_dir().map(|d| d.join(KERNEL)) {
+                if src.is_file() {
+                    let _ = std::fs::copy(src, dir.join(KERNEL));
+                }
+            }
+        }
+        Ok(target)
+    }
+
+    fn is_glibc_image(path: &Path) -> bool {
+        std::fs::metadata(path)
+            .map(|m| m.len() > 8 * 1024 * 1024)
+            .unwrap_or(false)
     }
 
     /// 生成 VM 内的构建脚本：装依赖、拉 ImageBuilder、校验版本、构建、产物落共享盘。
@@ -179,20 +262,12 @@ set -u
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 log() {{ echo "[build] $*"; }}
 
-log "安装构建依赖"
-apk add --no-cache make tar bash coreutils findutils patch diffutils zstd gawk grep gzip unzip bzip2 wget file python3 py3-setuptools perl >/host/apk.log 2>&1
-# glibc 兼容层与 Alpine 版 fakeroot：ImageBuilder 自带的 fakeroot 是 glibc 构建，musl 下跑不起来。
-apk add --no-cache gcompat libc6-compat fakeroot >>/host/apk.log 2>&1 || log "警告: gcompat/fakeroot 安装失败，构建可能中断"
-# ImageBuilder 的 Makefile 用 $(shell which xxx) 解析 SHELL，Alpine 的 busybox 没有 which，
-# 缺这个垫片会报 "env: 'bash': No such file or directory" 并在 _check_profile 处失败。
-printf '#!/bin/sh\ncommand -v "$1"\n' > /usr/local/bin/which && chmod +x /usr/local/bin/which
-[ -x /usr/bin/nproc ] && ln -sf /usr/bin/nproc /usr/local/bin/nproc
-export SHELL=/bin/bash
-command -v make >/dev/null 2>&1 || {{ log "构建依赖安装失败，详见 apk.log"; exit 10; }}
+log "准备构建环境"
+mkdir -p /host/output || exit 11
+for t in wget tar zstd make bzip2 gzip unzip file python3 perl sed gawk grep patch findutils; do
+  command -v "$t" >/dev/null 2>&1 || {{ log "缺少构建工具 $t，请更新虚拟机镜像"; exit 10; }}
+done
 
-# 关键：构建必须在 VM 自己的文件系统里做。共享目录是 vvfat（FAT），
-# 没有 unix socket 也没有权限位，fakeroot 会在那里超时（libfakeroot: connect: Connection timed out）。
-mkdir -p /host/output /tmp/ib || exit 11
 log "临时空间: $(df -h /tmp | tail -1)"
 log "下载 ImageBuilder"
 log "{url}"
@@ -203,8 +278,6 @@ tar --zstd -xf /tmp/ib.tar.zst -C /tmp || {{ log "解压失败（临时空间不
 IB=$(ls -d /tmp/{eco}-imagebuilder-* 2>/dev/null | head -1)
 [ -n "$IB" ] && cd "$IB" || {{ log "未找到解压目录"; exit 14; }}
 rm -f /tmp/ib.tar.zst
-# 构建期下载与固件内软件源都切到所选镜像（ImageBuilder 的源在 repositories.conf，
-# 固件里的默认源在 include/version.mk 的 VERSION_REPO）。
 for f in repositories repositories.conf include/version.mk; do
   if [ -f "$f" ]; then
     sed -i "s|https://downloads.immortalwrt.org|{mirror}|g;s|https://downloads.openwrt.org|{mirror}|g;s|https://mirrors.vsean.net/openwrt|{mirror}|g" "$f"
@@ -214,24 +287,17 @@ log "软件源已切到 {mirror}"
 if grep -q "REVISION:=" include/version.mk 2>/dev/null; then
   log "版本信息: $(grep -m1 'REVISION:=' include/version.mk)"
 fi
-# FILES 也要先拷到 VM 里，FAT 上的文件带不了权限位。
 rm -rf /tmp/files
 cp -R /host/files /tmp/files
 chmod -R 755 /tmp/files/etc/uci-defaults 2>/dev/null || true
-# ImageBuilder 自带的是 glibc 版 fakeroot，在 Alpine(musl) 上守护进程起不来，
-# 只用系统装好的 Alpine fakeroot；没装上就退回默认值。
-FR_OPT=""
-if [ -x /usr/bin/fakeroot ]; then FR_OPT="FAKEROOT=/usr/bin/fakeroot"; else log "警告: fakeroot 未安装，可能构建失败"; fi
 log "开始构建固件"
-make $FR_OPT image PROFILE={profile} PACKAGES={packages} FILES=/tmp/files BIN_DIR=/host/output {rootfs}
+make image PROFILE={profile} PACKAGES={packages} FILES=/tmp/files BIN_DIR=/host/output {rootfs}
 rc=$?
-# 镜像同步会有偶发的个别包下载失败，失败就原样重试一次（opkg 会复用已下载的包）。
 if [ $rc -ne 0 ]; then
   log "首次构建失败（退出码 $rc），重试一次"
-  make $FR_OPT image PROFILE={profile} PACKAGES={packages} FILES=/tmp/files BIN_DIR=/host/output {rootfs}
+  make image PROFILE={profile} PACKAGES={packages} FILES=/tmp/files BIN_DIR=/host/output {rootfs}
   rc=$?
 fi
-ls -l /host/output 2>/dev/null || true
 log "make 退出码 $rc"
 ls -l /host/output || true
 exit $rc
@@ -249,7 +315,9 @@ exit $rc
         let qemu =
             qemu_dir().ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：找不到 qemu".into()))?;
         let vm = vm_dir()
-            .ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：缺少内核或 initramfs".into()))?;
+            .ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：缺少内核".into()))?;
+        let initramfs = initramfs_path()
+            .ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：缺少 initramfs".into()))?;
         let bios = bios_dir(&qemu, &vm);
         // 按宿主可用内存决定虚拟机大小，并写进日志，出问题能一眼看出来。
         let memory_mb = wrt_ui_core::winsys::vm_memory_mb();
@@ -295,7 +363,7 @@ exit $rc
             .arg("-kernel")
             .arg(vm.join(KERNEL))
             .arg("-initrd")
-            .arg(vm.join(INITRAMFS))
+            .arg(&initramfs)
             .arg("-m")
             // ImageBuilder 解压后接近 1GB（ramfs），默认给 8 GiB；
             // 宿主内存紧张时按实际可用内存缩到 2 GiB，避免 qemu 起不来。

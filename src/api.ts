@@ -76,6 +76,7 @@ export const api = {
   readLog: (id: string, offset: number) =>
     call<{ text: string; next: number }>("read_log", { id, offset }),
   artifacts: (id: string) => call<Artifact[]>("list_artifacts", { id }),
+  ensureVmImage: () => call<string>("ensure_vm_image"),
   openUrl: (url: string) => call<void>("open_url", { url }),
   openDevtools: () => call<void>("open_devtools"),
   uwpLoopbackList: () => call<string[]>("uwp_loopback_list"),

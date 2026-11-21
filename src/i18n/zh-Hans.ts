@@ -298,6 +298,7 @@ export const zhHans = {
   "theme.color.warning": "警告颜色",
   "theme.color.error": "错误颜色",
   "settings.openDataDir": "打开数据目录",
+  "common.preparingVm": "正在准备虚拟机镜像（首次约 60 MiB）…",
   "boot.loading": "正在读取设置与运行环境",
   "lang.label": "语言",
   "env.checking": "检查中",
