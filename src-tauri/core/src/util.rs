@@ -72,5 +72,4 @@ mod tests {
         assert_eq!(iso_from_secs(1_700_000_000), "2023-11-14T22:13:20Z");
         assert_eq!(iso_from_secs(86_399), "1970-01-01T23:59:59Z");
     }
-
 }

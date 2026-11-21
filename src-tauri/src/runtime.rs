@@ -1,8 +1,8 @@
+use firmforge_core::error::{AppError, AppResult};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
 use tokio::process::Command;
-use firmforge_core::error::{AppError, AppResult};
 
 /// 一次构建运行时需要的全部信息。用户输入只通过环境变量与文件传递。
 #[derive(Debug, Clone)]
@@ -27,7 +27,6 @@ pub fn engine_name() -> &'static str {
 }
 
 pub type LogFn = Arc<dyn Fn(&str) + Send + Sync>;
-
 
 /// 内置 QEMU 引擎：用随包分发的 Alpine 微型 VM 跑 ImageBuilder 构建，
 /// 不需要 Docker、WSL 或用户自己安装任何 Linux 环境。
@@ -148,7 +147,6 @@ pub mod qemu {
             size
         ))
     }
-
 
     /// 内置虚拟机的 initramfs：优先用数据目录下已下载的 glibc 版本，
     /// 其次回退到安装包里随附的那一份。
@@ -280,8 +278,7 @@ exit $rc
     pub async fn run(spec: &Spec, log: &LogFn, out_dir: &Path) -> AppResult<()> {
         let qemu =
             qemu_dir().ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：找不到 qemu".into()))?;
-        let vm = vm_dir()
-            .ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：缺少内核".into()))?;
+        let vm = vm_dir().ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：缺少内核".into()))?;
         let initramfs = require_initramfs()?;
         let bios = bios_dir(&qemu, &vm);
         // 按宿主可用内存决定虚拟机大小，并写进日志，出问题能一眼看出来。
@@ -293,12 +290,12 @@ exit $rc
             .parent()
             .map(|p| p.join(format!("vm-{}", spec.job_id)))
             .unwrap_or_else(|| out_dir.to_path_buf());
-        let _ = std::fs::remove_dir_all(&work);
-        std::fs::create_dir_all(&work)?;
-        std::fs::create_dir_all(work.join("output"))?;
+        let _ = tokio::fs::remove_dir_all(&work).await;
+        tokio::fs::create_dir_all(&work).await?;
+        tokio::fs::create_dir_all(work.join("output")).await?;
 
         // 构建盘：宿主上的稀疏文件，VM 里格式化成 ext4 挂到 /build。
-        std::fs::write(work.join("run.sh"), build_script(spec))?;
+        tokio::fs::write(work.join("run.sh"), build_script(spec)).await?;
         let mut wrote = 0;
         for (name, contents) in &spec.files {
             let Some(rel) = name.strip_prefix("wrtkit/files/") else {
@@ -311,9 +308,9 @@ exit $rc
                 .join("files")
                 .join(rel.replace('/', std::path::MAIN_SEPARATOR_STR));
             if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
+                tokio::fs::create_dir_all(parent).await?;
             }
-            std::fs::write(&path, contents)?;
+            tokio::fs::write(&path, contents).await?;
             wrote += 1;
         }
         log(&format!(
@@ -412,7 +409,7 @@ exit $rc
         let _ = out_task.await;
         let _ = err_task.await;
 
-        let code = std::fs::read_to_string(work.join("exitcode"))
+        let code = tokio::fs::read_to_string(work.join("exitcode")).await
             .ok()
             .and_then(|t| t.trim().parse::<i32>().ok());
         match code {
@@ -427,14 +424,14 @@ exit $rc
         }
 
         // 产物从 output/ 复制到任务产物目录。
-        std::fs::create_dir_all(out_dir)?;
+        tokio::fs::create_dir_all(out_dir).await?;
         let produced = work.join("output");
-        if let Ok(entries) = std::fs::read_dir(&produced) {
-            for entry in entries.flatten() {
+        if let Ok(mut entries) = tokio::fs::read_dir(&produced).await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
                 let path = entry.path();
                 if path.is_file() {
                     if let Some(name) = path.file_name() {
-                        std::fs::copy(&path, out_dir.join(name))?;
+                        tokio::fs::copy(&path, out_dir.join(name)).await?;
                     }
                 }
             }
@@ -443,12 +440,11 @@ exit $rc
         Ok(())
     }
 
-
     pub async fn remove_container(job_id: &str) -> AppResult<()> {
         // 只在数据目录里收拾该任务的 VM 工作目录。
         if let Some(base) = dirs::data_dir() {
             let dir = base.join("FirmForge").join("jobs").join(job_id);
-            let _ = std::fs::remove_dir_all(dir.join(format!("vm-{job_id}")));
+            let _ = tokio::fs::remove_dir_all(dir.join(format!("vm-{job_id}"))).await;
         }
         Ok(())
     }
@@ -462,9 +458,6 @@ pub fn shell_quote_packages(packages: &str) -> String {
         .collect();
     format!("'{}'", cleaned.trim())
 }
-
-
-
 
 /// 检查内置引擎是否可用（QEMU 与内核资源是否随包存在）。
 pub async fn check() -> AppResult<String> {
@@ -484,7 +477,6 @@ pub async fn remove_job(job_id: &str) -> AppResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn engine_name_is_single_builtin() {

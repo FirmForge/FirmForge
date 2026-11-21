@@ -305,7 +305,11 @@ pub fn parse_feeds(text: &str) -> Vec<String> {
         let raw = if looks_like_git {
             fields[1]
         } else {
-            third.trim_end_matches('/').rsplit('/').next().unwrap_or(fields[1])
+            third
+                .trim_end_matches('/')
+                .rsplit('/')
+                .next()
+                .unwrap_or(fields[1])
         };
         // 第二列常带发行版前缀（`openwrt_base`、`immortalwrt_luci`），去掉后才是镜像目录名。
         let name = raw
@@ -455,7 +459,6 @@ pub async fn packages(
     })
 }
 
-
 /// 构建前检查：设备存在、根分区可调、主题在该版本软件源里真实存在。
 /// 内置 VM 引擎直接用 ImageBuilder 构建，不需要容器镜像摘要。
 pub async fn preflight(fetcher: &Fetcher, build: &Build) -> AppResult<()> {
@@ -505,8 +508,6 @@ pub async fn preflight(fetcher: &Fetcher, build: &Build) -> AppResult<()> {
     Ok(())
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -531,7 +532,6 @@ mod tests {
         assert!(!valid_version("../24.10.5"));
         assert!(!valid_version("25.12.0-rc1"));
     }
-
 
     /// 真实响应体（ImmortalWrt 25.12.2 发布镜像），关键点是 `src-git-full` + ^commit。
     const REAL_FEEDS: &str = "src-git-full base https://github.com/immortalwrt/immortalwrt.git^3682a14dd5ec6382af65d7e72b5b415b5f3173a8
@@ -565,7 +565,6 @@ src-git telephony https://github.com/openwrt/telephony.git^c58ec5a6703966dcccb53
         assert_eq!(category_for("luci-app-filebrowser"), "");
         assert_eq!(category_for("kmod-dae4"), "");
     }
-
 
     #[test]
     fn hostname_and_zone_rules() {

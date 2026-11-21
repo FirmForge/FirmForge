@@ -71,10 +71,7 @@ pub fn memory_mb() -> Option<(u64, u64)> {
         return None;
     }
     let mb = 1024 * 1024;
-    Some((
-        status.ullTotalPhys / mb,
-        status.ullAvailPhys / mb,
-    ))
+    Some((status.ullTotalPhys / mb, status.ullAvailPhys / mb))
 }
 
 #[cfg(not(windows))]

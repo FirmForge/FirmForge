@@ -1152,6 +1152,44 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c66915cc5391097de7a2b0b972e8505aa33c0df401fd3a6811dbdb32881ba48"
 
 [[package]]
+name = "firmforge"
+version = "1.3.2"
+dependencies = [
+ "dirs 6.0.0",
+ "firmforge-core",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "tar",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-autostart",
+ "tauri-plugin-dialog",
+ "tauri-plugin-notification",
+ "tauri-plugin-process",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-updater",
+ "tauri-runtime-wry",
+ "tokio",
+]
+
+[[package]]
+name = "firmforge-core"
+version = "1.3.2"
+dependencies = [
+ "dirs 6.0.0",
+ "pwhash",
+ "regex",
+ "reqwest 0.12.28",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "tokio",
+ "url",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "flate2"
 version = "1.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5853,43 +5891,6 @@ name = "writeable"
 version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
-
-[[package]]
-name = "wrt-ui"
-version = "1.3.0"
-dependencies = [
- "dirs 6.0.0",
- "serde",
- "serde_json",
- "tar",
- "tauri",
- "tauri-build",
- "tauri-plugin-autostart",
- "tauri-plugin-dialog",
- "tauri-plugin-notification",
- "tauri-plugin-process",
- "tauri-plugin-single-instance",
- "tauri-plugin-updater",
- "tauri-runtime-wry",
- "tokio",
- "wrt-ui-core",
-]
-
-[[package]]
-name = "wrt-ui-core"
-version = "1.3.0"
-dependencies = [
- "dirs 6.0.0",
- "pwhash",
- "regex",
- "reqwest 0.12.28",
- "serde",
- "serde_json",
- "thiserror 2.0.21",
- "tokio",
- "url",
- "windows-sys 0.61.2",
-]
 
 [[package]]
 name = "wry"

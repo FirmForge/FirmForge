@@ -1,11 +1,5 @@
 use crate::runtime;
 use crate::state::AppState;
-use serde::{Deserialize, Serialize};
-use std::path::Path;
-use std::sync::Arc;
-use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager, State};
-use tokio::sync::mpsc;
 use firmforge_core::error::{AppError, AppResult};
 use firmforge_core::models::{
     Artifact, Build, CleanupInfo, Device, Environment, Job, JobEvent, JobStatus, LogEvent,
@@ -15,6 +9,12 @@ use firmforge_core::net::{parse_proxy, valid_mirror};
 use firmforge_core::scripts;
 use firmforge_core::store::{is_firmware, validate_build};
 use firmforge_core::util::{iso_now, new_job_id};
+use serde::{Deserialize, Serialize};
+use std::path::Path;
+use std::sync::Arc;
+use std::time::Duration;
+use tauri::{AppHandle, Emitter, Manager, State};
+use tokio::sync::mpsc;
 
 // ---------------------------------------------------------------- 只读目录查询
 
@@ -142,7 +142,6 @@ pub async fn save_mirrors(
         })
         .await
 }
-
 
 #[tauri::command(rename_all = "snake_case")]
 pub async fn save_proxy(state: State<'_, AppState>, proxy: String) -> Result<Settings, AppError> {
@@ -453,16 +452,17 @@ pub async fn cleanup_job(state: State<'_, AppState>, id: String) -> Result<u64, 
 
 /// 在资源管理器里打开某个任务的产物目录（构建结束后一键定位固件）。
 #[tauri::command(rename_all = "snake_case")]
-pub async fn open_output_dir(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<String, AppError> {
+pub async fn open_output_dir(state: State<'_, AppState>, id: String) -> Result<String, AppError> {
     let dir = state.store.output_dir(&id);
     tokio::fs::create_dir_all(&dir)
         .await
         .map_err(|e| AppError::Io(e.to_string()))?;
     let path = dir.to_string_lossy().to_string();
-    let program = if cfg!(windows) { "explorer" } else { "xdg-open" };
+    let program = if cfg!(windows) {
+        "explorer"
+    } else {
+        "xdg-open"
+    };
     std::process::Command::new(program)
         .arg(&path)
         .spawn()
@@ -500,9 +500,9 @@ const ALLOWED_URLS: &[&str] = &[
 ];
 
 fn url_allowed(url: &str) -> bool {
-    ALLOWED_URLS
-        .iter()
-        .any(|base| url == *base || url.starts_with(&format!("{base}/")) || url.starts_with(&format!("{base}#")))
+    ALLOWED_URLS.iter().any(|base| {
+        url == *base || url.starts_with(&format!("{base}/")) || url.starts_with(&format!("{base}#"))
+    })
 }
 
 /// 用系统默认浏览器打开白名单内的链接（不经过 shell，避免参数注入）。
@@ -582,12 +582,15 @@ pub async fn uwp_loopback_add(package: String) -> Result<(), AppError> {
 async fn dir_size(dir: &Path) -> u64 {
     let mut total = 0u64;
     let mut stack = vec![dir.to_path_buf()];
+    // 目录遍历走 tokio::fs，避免在 async 任务里做阻塞系统调用。
     while let Some(path) = stack.pop() {
-        let Ok(reader) = std::fs::read_dir(&path) else {
+        let Ok(mut reader) = tokio::fs::read_dir(&path).await else {
             continue;
         };
-        for entry in reader.flatten() {
-            let Ok(meta) = entry.metadata() else { continue };
+        while let Ok(Some(entry)) = reader.next_entry().await {
+            let Ok(meta) = entry.metadata().await else {
+                continue;
+            };
             if meta.is_dir() {
                 stack.push(entry.path());
             } else {
@@ -791,7 +794,8 @@ mod tests {
     #[test]
     fn settings_command_surface_keeps_ecosystem_consistent() {
         // 生态切换会重置镜像列表，避免 OpenWrt 使用 immortalwrt 源。
-        let mirrors = firmforge_core::net::default_mirrors(firmforge_core::models::Ecosystem::OpenWrt);
+        let mirrors =
+            firmforge_core::net::default_mirrors(firmforge_core::models::Ecosystem::OpenWrt);
         assert!(mirrors.iter().all(|m| !m.url.contains("immortalwrt")));
     }
 }

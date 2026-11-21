@@ -48,7 +48,6 @@ pub fn valid_mirror(raw: &str) -> bool {
     path_ok && !forbidden_host(u.host_str().unwrap_or(""))
 }
 
-
 /// 查询代理只接受 http / socks5，且不允许凭据与路径。
 pub fn parse_proxy(value: &str) -> AppResult<Option<String>> {
     let value = value.trim();

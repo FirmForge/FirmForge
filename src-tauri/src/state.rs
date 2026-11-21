@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-use tokio::sync::{Mutex, RwLock};
-use tokio::task::AbortHandle;
 use firmforge_core::error::{AppError, AppResult};
 use firmforge_core::models::{Job, JobStatus, Settings};
 use firmforge_core::net::Fetcher;
 use firmforge_core::store::Store;
+use std::collections::HashMap;
+use tokio::sync::{Mutex, RwLock};
+use tokio::task::AbortHandle;
 
 /// 桌面应用共享状态：设置、任务清单、活动构建与下载器。
 pub struct AppState {
@@ -92,7 +92,6 @@ impl AppState {
         snapshot
     }
 
-
     pub async fn mark_cleaned(&self, id: &str) -> AppResult<()> {
         let snapshot = {
             let mut jobs = self.jobs.write().await;
@@ -128,5 +127,4 @@ impl AppState {
     pub async fn has_active(&self) -> bool {
         !self.active.lock().await.is_empty()
     }
-
 }

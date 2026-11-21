@@ -210,4 +210,3 @@ pub struct LogEvent<'a> {
     pub id: &'a str,
     pub text: &'a str,
 }
-

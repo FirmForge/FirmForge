@@ -41,8 +41,7 @@ pub fn set_data_dir(target: &str) -> AppResult<PathBuf> {
     if !path.is_absolute() {
         return Err(AppError::Invalid("请选择绝对路径".into()));
     }
-    std::fs::create_dir_all(&path)
-        .map_err(|e| AppError::Invalid(format!("无法创建目录: {e}")))?;
+    std::fs::create_dir_all(&path).map_err(|e| AppError::Invalid(format!("无法创建目录: {e}")))?;
     // 试写一个探针文件，避免选到只读目录
     let probe = path.join(".firmforge-write-test");
     std::fs::write(&probe, b"ok").map_err(|e| AppError::Invalid(format!("目录不可写: {e}")))?;
