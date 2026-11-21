@@ -96,14 +96,13 @@ pub fn memory_mb() -> Option<(u64, u64)> {
 /// 可用内存不足时按“峰值 8 GiB、至少 2 GiB、给宿主留 1.5 GiB”取较小值。
 pub fn vm_memory_mb() -> u64 {
     const WANT: u64 = 8192;
-    const MIN: u64 = 2048;
-    const HOST_RESERVE: u64 = 1536;
-    let Some((total, avail)) = memory_mb() else {
+    const MIN: u64 = 4096;
+    let Some((total, _avail)) = memory_mb() else {
         return MIN;
     };
-    let by_total = total.saturating_sub(HOST_RESERVE).max(MIN);
-    let by_avail = avail.saturating_sub(HOST_RESERVE).max(MIN);
-    WANT.min(by_total).min(by_avail).max(MIN)
+    // 根文件系统是 ramfs，ImageBuilder 解压后要 1.5 GiB 以上；
+    // 按物理内存的 55% 给，宿主内存紧张时由 Windows 换页兜底。
+    (total * 55 / 100).clamp(MIN, WANT)
 }
 
 #[cfg(test)]

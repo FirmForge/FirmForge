@@ -264,22 +264,7 @@ log() {{ echo "[build] $*"; }}
 
 log "准备构建环境"
 mkdir -p /tmp /host/output 2>/dev/null || mount -t tmpfs tmpfs /tmp
-# 构建在独立磁盘上做：ramfs 放不下 ImageBuilder + 全部软件包，
-# 内存会被撑爆，fakeroot 守护进程跟着被回收（libfakeroot: connect timed out）。
-if [ -b /dev/vdb ]; then
-  # ext4 是模块，按依赖顺序加载（没有 modules.dep，直接 insmod）
-  for m in crc16 mbcache jbd2 ext4; do
-    ko=$(find /wrtmods -name "$m.ko*" 2>/dev/null | head -1)
-    [ -n "$ko" ] && insmod "$ko" 2>/dev/null
-  done
-  command -v mkfs.ext4 >/dev/null 2>&1 || {{ log "镜像缺少 mkfs.ext4（需 e2fsprogs）"; exit 15; }}
-  mkfs.ext4 -q -F /dev/vdb >/dev/null 2>&1 || {{ log "构建盘格式化失败"; exit 15; }}
-  mkdir -p /build && mount /dev/vdb /build || {{ log "构建盘挂载失败"; exit 16; }}
-  WORK=/build
-else
-  WORK=/tmp
-fi
-log "构建目录: $WORK ($(df -h "$WORK" | tail -1 | awk '{{print $2" 可用 "$4}}'))"
+WORK=/tmp
 [ -d /tmp ] || {{ log "虚拟机缺少 /tmp，请更新镜像"; exit 10; }}
 missing=""
 for t in wget tar zstd make gzip unzip file python3 sed grep patch find; do
@@ -352,11 +337,6 @@ exit $rc
         std::fs::create_dir_all(work.join("output"))?;
 
         // 构建盘：宿主上的稀疏文件，VM 里格式化成 ext4 挂到 /build。
-        // 注意：磁盘镜像不能放在共享目录里，vvfat 不支持 >2GB 的文件。
-        let disk = work.with_extension("img");
-        if !disk.exists() {
-            std::fs::File::create(&disk)?.set_len(4 * 1024 * 1024 * 1024)?;
-        }
         std::fs::write(work.join("run.sh"), build_script(spec))?;
         let mut wrote = 0;
         for (name, contents) in &spec.files {
@@ -404,11 +384,6 @@ exit $rc
             .arg(format!(
                 "file=fat:rw:{},format=raw,if=virtio",
                 work.display()
-            ))
-            .arg("-drive")
-            .arg(format!(
-                "file={},format=raw,if=virtio",
-                disk.display()
             ))
             .arg("-netdev")
             .arg("user,id=n0")
@@ -489,8 +464,6 @@ exit $rc
                 )))
             }
         }
-
-        let _ = std::fs::remove_file(&disk);
 
         // 产物从 output/ 复制到任务产物目录。
         std::fs::create_dir_all(out_dir)?;
