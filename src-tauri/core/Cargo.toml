@@ -1,6 +1,6 @@
 [package]
 name = "firmforge-core"
-version = "1.3.3"
+version = "1.3.4"
 description = "FirmForge 业务核心：上游数据、脚本生成、配置与任务存储（不依赖桌面外壳）"
 edition = "2021"
 license = "MIT"

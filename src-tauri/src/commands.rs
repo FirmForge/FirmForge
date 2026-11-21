@@ -463,7 +463,8 @@ pub async fn open_output_dir(state: State<'_, AppState>, id: String) -> Result<S
     } else {
         "xdg-open"
     };
-    std::process::Command::new(program)
+    let mut cmd = std::process::Command::new(program);
+    crate::winutil::no_window(&mut cmd)
         .arg(&path)
         .spawn()
         .map_err(|e| AppError::Io(e.to_string()))?;
@@ -486,7 +487,8 @@ pub async fn open_data_dir(state: State<'_, AppState>) -> Result<String, AppErro
     } else {
         "xdg-open"
     };
-    std::process::Command::new(program)
+    let mut cmd = std::process::Command::new(program);
+    crate::winutil::no_window(&mut cmd)
         .arg(&path)
         .spawn()
         .map_err(|e| AppError::Io(e.to_string()))?;
@@ -525,6 +527,7 @@ pub async fn open_url(url: String) -> Result<(), AppError> {
         ("xdg-open", None)
     };
     let mut cmd = std::process::Command::new(program);
+    crate::winutil::no_window(&mut cmd);
     if let Some(arg) = pre_arg {
         cmd.arg(arg);
     }
@@ -536,8 +539,20 @@ pub async fn open_url(url: String) -> Result<(), AppError> {
 
 /// 打开 WebView 开发者工具（排查界面问题时用）。
 #[tauri::command(rename_all = "snake_case")]
-pub async fn open_devtools(window: tauri::WebviewWindow) -> Result<(), AppError> {
+pub async fn open_devtools(app: tauri::AppHandle, window: tauri::WebviewWindow) -> Result<(), AppError> {
     window.open_devtools();
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    if crate::winutil::has_devtools_window() {
+        return Ok(());
+    }
+    // WebView2 上 open_devtools 可能静默失败：带 --auto-open-devtools-for-tabs 重启一次。
+    let exe = std::env::current_exe().map_err(|e| AppError::Io(e.to_string()))?;
+    let mut cmd = std::process::Command::new(exe);
+    cmd.env("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--auto-open-devtools-for-tabs");
+    crate::winutil::no_window(&mut cmd)
+        .spawn()
+        .map_err(|e| AppError::Io(e.to_string()))?;
+    app.exit(0);
     Ok(())
 }
 
@@ -547,12 +562,94 @@ pub async fn uwp_loopback_list() -> Result<Vec<String>, AppError> {
     if !cfg!(windows) {
         return Ok(Vec::new());
     }
-    let out = std::process::Command::new("CheckNetIsolation.exe")
+    let mut cmd = std::process::Command::new("CheckNetIsolation.exe");
+    let out = crate::winutil::no_window(&mut cmd)
         .args(["LoopbackExempt", "-s"])
         .output()
         .map_err(|e| AppError::Io(e.to_string()))?;
     let text = String::from_utf8_lossy(&out.stdout);
     Ok(firmforge_core::winsys::parse_loopback(&text))
+}
+
+/// 已安装的 UWP 应用与它的环回豁免状态，供设置页列表展示。
+#[derive(serde::Serialize)]
+pub struct UwpApp {
+    /// 显示名，取不到时退化为包名。
+    pub name: String,
+    /// PackageFamilyName，CheckNetIsolation 认这个。
+    pub family: String,
+    pub exempt: bool,
+}
+
+/// 枚举本机 UWP 应用：PowerShell 拿 PackageFamilyName，再和豁免列表比对。
+#[tauri::command(rename_all = "snake_case")]
+pub async fn uwp_apps() -> Result<Vec<UwpApp>, AppError> {
+    if !cfg!(windows) {
+        return Ok(Vec::new());
+    }
+    let mut ps = std::process::Command::new("powershell.exe");
+    let out = crate::winutil::no_window(&mut ps)
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "Get-AppxPackage | ForEach-Object { $_.PackageFamilyName + '|' + $_.Name }",
+        ])
+        .output()
+        .map_err(|e| AppError::Io(e.to_string()))?;
+    if !out.status.success() {
+        return Err(AppError::Invalid("读取应用列表失败".into()));
+    }
+    let text = String::from_utf8_lossy(&out.stdout);
+    let mut cni = std::process::Command::new("CheckNetIsolation.exe");
+    let exempt_out = crate::winutil::no_window(&mut cni)
+        .args(["LoopbackExempt", "-s"])
+        .output()
+        .map_err(|e| AppError::Io(e.to_string()))?;
+    let exempt = firmforge_core::winsys::parse_loopback(&String::from_utf8_lossy(&exempt_out.stdout));
+
+    let mut apps: Vec<UwpApp> = text
+        .lines()
+        .filter_map(|line| {
+            let line = line.trim();
+            let (family, name) = line.split_once('|')?;
+            if family.is_empty() {
+                return None;
+            }
+            Some(UwpApp {
+                name: if name.is_empty() { family.to_string() } else { name.to_string() },
+                family: family.to_string(),
+                exempt: exempt.iter().any(|e| e.chars().any(|c| c == '_') && e.eq_ignore_ascii_case(family)),
+            })
+        })
+        .collect();
+    apps.sort_by_key(|a| a.name.to_lowercase());
+    Ok(apps)
+}
+
+/// 取消环回豁免：`CheckNetIsolation LoopbackExempt -d -n=<包名>`。
+#[tauri::command(rename_all = "snake_case")]
+pub async fn uwp_loopback_remove(package: String) -> Result<(), AppError> {
+    let name = package.trim();
+    let ok = (3..=200).contains(&name.len())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
+    if !ok {
+        return Err(AppError::Invalid("包名无效".into()));
+    }
+    if !cfg!(windows) {
+        return Err(AppError::Invalid("仅 Windows 支持".into()));
+    }
+    let mut cmd = std::process::Command::new("CheckNetIsolation.exe");
+    let status = crate::winutil::no_window(&mut cmd)
+        .args(["LoopbackExempt", "-d", &format!("-n={name}")])
+        .status()
+        .map_err(|e| AppError::Io(e.to_string()))?;
+    if !status.success() {
+        return Err(AppError::Invalid("移除失败".into()));
+    }
+    Ok(())
 }
 
 /// 给指定 UWP 包加环回豁免：`CheckNetIsolation LoopbackExempt -a -n=<包名>`。
@@ -569,7 +666,8 @@ pub async fn uwp_loopback_add(package: String) -> Result<(), AppError> {
     if !cfg!(windows) {
         return Err(AppError::Invalid("仅 Windows 支持".into()));
     }
-    let status = std::process::Command::new("CheckNetIsolation.exe")
+    let mut cmd = std::process::Command::new("CheckNetIsolation.exe");
+    let status = crate::winutil::no_window(&mut cmd)
         .args(["LoopbackExempt", "-a", &format!("-n={name}")])
         .status()
         .map_err(|e| AppError::Io(e.to_string()))?;

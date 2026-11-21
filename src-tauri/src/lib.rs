@@ -1,6 +1,7 @@
 mod commands;
 mod runtime;
 mod state;
+mod winutil;
 
 use state::AppState;
 use tauri::menu::{Menu, MenuItem};
@@ -103,7 +104,8 @@ fn focus_main(app: &tauri::AppHandle) {
 
 fn open_data_dir(app: &tauri::AppHandle) {
     let dir = app.state::<AppState>().store.root().to_path_buf();
-    let _ = std::process::Command::new("explorer").arg(dir).spawn();
+    let mut cmd = std::process::Command::new("explorer");
+    let _ = crate::winutil::no_window(&mut cmd).arg(dir).spawn();
 }
 
 fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
@@ -203,6 +205,8 @@ pub fn run() {
             commands::open_devtools,
             commands::uwp_loopback_list,
             commands::uwp_loopback_add,
+            commands::uwp_loopback_remove,
+            commands::uwp_apps,
         ])
         .setup(|app| {
             build_tray(app.handle())?;

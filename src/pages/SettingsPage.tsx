@@ -65,7 +65,8 @@ export default function SettingsPage({ settings, env, update, onSettings, onNoti
   const [autostartOn, setAutostartOn] = useState(false);
   const [changingDir, setChangingDir] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
-  const [uwpList, setUwpList] = useState<string[]>([]);
+  const [uwpApps, setUwpApps] = useState<{ name: string; family: string; exempt: boolean }[]>([]);
+  const [uwpQuery, setUwpQuery] = useState("");
   const [uwpInput, setUwpInput] = useState("");
   const [uwpBusy, setUwpBusy] = useState(false);
   const custom = useThemeCustom();
@@ -75,20 +76,6 @@ export default function SettingsPage({ settings, env, update, onSettings, onNoti
       .isEnabled()
       .then(setAutostartOn)
       .catch(() => undefined);
-  }, []);
-
-  useEffect(() => {
-    if (!isDesktop()) return;
-    let alive = true;
-    void api
-      .uwpLoopbackList()
-      .then((list) => {
-        if (alive) setUwpList(Array.isArray(list) ? list : []);
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
   }, []);
 
   const toggleAutostart = useCallback(
@@ -104,19 +91,19 @@ export default function SettingsPage({ settings, env, update, onSettings, onNoti
     [onNotify, onError, t],
   );
 
-  useEffect(() => {
+  // UWP 列表按需刷新：CheckNetIsolation 是控制台程序，启动时调用会闪窗。
+  const refreshUwp = useCallback(async () => {
     if (!isDesktop()) return;
-    let alive = true;
-    void api
-      .uwpLoopbackList()
-      .then((list) => {
-        if (alive) setUwpList(Array.isArray(list) ? list : []);
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, []);
+    setUwpBusy(true);
+    try {
+      const apps = await api.uwpApps();
+      setUwpApps(Array.isArray(apps) ? apps : []);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUwpBusy(false);
+    }
+  }, [onError]);
 
   useEffect(() => {
     setMirrors(settings.mirrors);
@@ -156,6 +143,23 @@ export default function SettingsPage({ settings, env, update, onSettings, onNoti
     }
   }, [mirrors, proxy, onSettings, onNotify, onError, t]);
 
+  const toggleUwp = useCallback(
+    async (family: string, next: boolean) => {
+      setUwpBusy(true);
+      try {
+        if (next) await api.uwpLoopbackAdd(family);
+        else await api.uwpLoopbackRemove(family);
+        setUwpApps((prev) => prev.map((a) => (a.family === family ? { ...a, exempt: next } : a)));
+        onNotify(next ? t("settings.uwpAdded") : t("settings.uwpRemoved"), "success");
+      } catch (e) {
+        onError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setUwpBusy(false);
+      }
+    },
+    [onError, onNotify, t],
+  );
+
   const addUwp = useCallback(async () => {
     const name = uwpInput.trim();
     if (!name) return;
@@ -163,8 +167,8 @@ export default function SettingsPage({ settings, env, update, onSettings, onNoti
     try {
       await api.uwpLoopbackAdd(name);
       setUwpInput("");
-      const next = await api.uwpLoopbackList();
-      setUwpList(Array.isArray(next) ? next : []);
+      const next = await api.uwpApps();
+      setUwpApps(Array.isArray(next) ? next : []);
       onNotify(t("settings.uwpAdded"), "success");
     } catch (e) {
       onError(e instanceof Error ? e.message : String(e));
@@ -477,13 +481,84 @@ export default function SettingsPage({ settings, env, update, onSettings, onNoti
       </Panel>
 
       <Panel>
-        <SubHead index="09" title={t("settings.uwp")} meta={t("settings.uwpCount", { n: uwpList.length })} />
+        <SubHead
+          index="09"
+          title={t("settings.uwp")}
+          meta={t("settings.uwpCount", { n: uwpApps.filter((a) => a.exempt).length })}
+        />
         <Typography sx={{ fontSize: 11.5, lineHeight: 1.7, mb: 2 }}>{t("settings.uwpHint")}</Typography>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mb: 2 }}>
+          <Button size="small" disabled={!isDesktop() || uwpBusy} onClick={() => void refreshUwp()}>
+            {uwpBusy ? t("common.loading") : t("settings.uwpScan")}
+          </Button>
+          <TextField
+            value={uwpQuery}
+            onChange={(e) => setUwpQuery(e.target.value)}
+            placeholder={t("settings.uwpSearch")}
+            size="small"
+            fullWidth
+            slotProps={{ htmlInput: { "aria-label": t("settings.uwpSearch") } }}
+          />
+        </Stack>
+        <Box sx={{ border, maxHeight: 320, overflow: "auto", backgroundColor: paper }}>
+          {uwpApps
+            .filter((a) => {
+              const q = uwpQuery.trim().toLowerCase();
+              return !q || a.name.toLowerCase().includes(q) || a.family.toLowerCase().includes(q);
+            })
+            .map((a) => (
+              <Stack
+                key={a.family}
+                direction="row"
+                sx={{
+                  alignItems: "center",
+                  gap: 1.5,
+                  px: 1.5,
+                  py: 1,
+                  borderBottom: border,
+                  "&:last-of-type": { borderBottom: "none" },
+                }}
+              >
+                <Box component="span" sx={{ flex: 1, minWidth: 0, fontSize: 12 }}>
+                  <Box component="span" sx={{ display: "block", fontWeight: 600 }}>
+                    {a.name}
+                  </Box>
+                  <Box
+                    component="span"
+                    sx={{
+                      display: "block",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 10.5,
+                      color: "var(--color-muted)",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {a.family}
+                  </Box>
+                </Box>
+                <Button
+                  size="small"
+                  variant={a.exempt ? "contained" : "outlined"}
+                  disabled={uwpBusy}
+                  onClick={() => void toggleUwp(a.family, !a.exempt)}
+                  sx={{ flexShrink: 0 }}
+                >
+                  {a.exempt ? t("settings.uwpOn") : t("settings.uwpOff")}
+                </Button>
+              </Stack>
+            ))}
+          {uwpApps.length === 0 ? (
+            <Typography sx={{ p: 2, fontSize: 11.5 }}>{t("settings.uwpNone")}</Typography>
+          ) : null}
+        </Box>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 2 }}>
           <TextField
             value={uwpInput}
             onChange={(e) => setUwpInput(e.target.value)}
             placeholder="Microsoft.WindowsStore_8wekyb3d8bbwe"
+            size="small"
             fullWidth
             slotProps={{ htmlInput: { "aria-label": t("settings.uwp") } }}
           />
@@ -496,27 +571,6 @@ export default function SettingsPage({ settings, env, update, onSettings, onNoti
             {t("settings.uwpAdd")}
           </Button>
         </Stack>
-        {uwpList.length ? (
-          <Box
-            component="pre"
-            sx={{
-              m: 0,
-              mt: 2,
-              p: 1.5,
-              border,
-              backgroundColor: paper,
-              fontFamily: "var(--font-mono)",
-              fontSize: 11.5,
-              lineHeight: 1.7,
-              maxHeight: 180,
-              overflow: "auto",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-all",
-            }}
-          >
-            {uwpList.join("\n")}
-          </Box>
-        ) : null}
       </Panel>
 
       <ThemeDialog open={themeOpen} onClose={() => setThemeOpen(false)} />

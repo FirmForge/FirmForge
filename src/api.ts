@@ -80,6 +80,9 @@ export const api = {
   openDevtools: () => call<void>("open_devtools"),
   uwpLoopbackList: () => call<string[]>("uwp_loopback_list"),
   uwpLoopbackAdd: (pkg: string) => call<void>("uwp_loopback_add", { package: pkg }),
+  uwpLoopbackRemove: (pkg: string) => call<void>("uwp_loopback_remove", { package: pkg }),
+  uwpApps: () =>
+    call<{ name: string; family: string; exempt: boolean }[]>("uwp_apps"),
   openOutputDir: (id: string) => call<string>("open_output_dir", { id }),
   saveArtifact: (id: string, name: string) =>
     call<string>("save_artifact", { id, name }),

@@ -116,7 +116,9 @@ function Tag({
         gap: 0.5,
         border,
         backgroundColor: TONE_BG[tone],
-        color: tone === "pink" ? onPink : tone === "ink" ? paper : onAccent,
+        // paper/slab 在暗色下是深底，文字必须用 ink 才不会黑压黑。
+        color:
+          tone === "paper" || tone === "slab" ? ink : tone === "pink" ? onPink : tone === "ink" ? paper : onAccent,
         px: 1,
         py: "2px",
         maxWidth: "100%",
