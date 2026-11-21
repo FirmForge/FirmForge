@@ -352,7 +352,8 @@ exit $rc
         std::fs::create_dir_all(work.join("output"))?;
 
         // 构建盘：宿主上的稀疏文件，VM 里格式化成 ext4 挂到 /build。
-        let disk = work.join("build.img");
+        // 注意：磁盘镜像不能放在共享目录里，vvfat 不支持 >2GB 的文件。
+        let disk = work.with_extension("img");
         if !disk.exists() {
             std::fs::File::create(&disk)?.set_len(8 * 1024 * 1024 * 1024)?;
         }
