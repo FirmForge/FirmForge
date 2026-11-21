@@ -16,12 +16,14 @@ export function ScriptEditor({
   onChange,
   path,
   height = 320,
+  plain = false,
   ariaLabel,
 }: {
   value: string;
   onChange: (next: string) => void;
   path?: string;
   height?: number;
+  plain?: boolean;
   ariaLabel: string;
 }) {
   const { mode } = useThemeMode();
@@ -96,7 +98,7 @@ export function ScriptEditor({
           value={value}
           height={`${height}px`}
           theme={theme}
-          extensions={[StreamLanguage.define(shell)]}
+          extensions={plain ? [] : [StreamLanguage.define(shell)]}
           basicSetup={{
             lineNumbers: true,
             highlightActiveLine: true,

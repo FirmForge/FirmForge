@@ -9,6 +9,7 @@
   --color-hot-pink: #ff006e;
   --color-acid-lime: #ccff00;
   --color-electric-cyan: #00d9ff;
+  --color-error: #ff006e;
   --color-tangerine: #ff9500;
   --surface-slab: #f4f4f4;
 
@@ -28,6 +29,7 @@
 
   /* Typography */
   --font-sans: Inter, "Helvetica Neue", Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  --font-body: var(--font-mono);
   --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Noto Sans Mono CJK SC",
     "Microsoft YaHei", monospace;
   --text-display: 72px;

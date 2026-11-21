@@ -231,7 +231,7 @@ export default function App() {
         </Box>
 
         <Box sx={{ mt: "auto", p: { xs: 1, md: 1.5 }, borderTop: border }}>
-          <Box sx={{ display: { xs: "none", md: "block" } }}>
+          <Box sx={{ display: { xs: "none", md: "flex" }, justifyContent: "center" }}>
             <MonoLabel tone="paper">
               {settings ? (settings.ecosystem === "openwrt" ? "OpenWrt" : "ImmortalWrt") : "—"}
             </MonoLabel>

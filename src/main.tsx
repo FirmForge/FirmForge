@@ -4,6 +4,7 @@ import { CssBaseline, ThemeProvider } from "@mui/material";
 import App from "./App";
 import { I18nProvider } from "./i18n";
 import { detectThemeMode, ThemeModeProvider, useThemeMode } from "./theme-mode";
+import { ThemeCustomProvider } from "./theme-custom";
 import "./styles/tokens.css";
 
 // 首帧之前就把主题写到 <html>，避免刷新时闪一下亮色。
@@ -27,9 +28,11 @@ function Root() {
 createRoot(container).render(
   <StrictMode>
     <I18nProvider>
+      <ThemeCustomProvider>
       <ThemeModeProvider>
         <Root />
       </ThemeModeProvider>
+      </ThemeCustomProvider>
     </I18nProvider>
   </StrictMode>,
 );
