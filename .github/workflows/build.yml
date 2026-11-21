@@ -77,6 +77,15 @@ jobs:
           cargo clippy --all-targets -- -D warnings
           cargo test
 
+      - name: 内置虚拟机镜像（随安装包分发）
+        run: |
+          set -euo pipefail
+          mkdir -p src-tauri/resources/vm
+          URL="https://github.com/${{ github.repository }}/releases/download/vm/initramfs.cpio.gz"
+          curl -fsSL --retry 3 -o src-tauri/resources/vm/initramfs.cpio.gz "$URL"
+          ls -lh src-tauri/resources/vm/initramfs.cpio.gz
+          test "$(stat -c%s src-tauri/resources/vm/initramfs.cpio.gz)" -gt 8000000
+
       - name: 清理历史安装包
         shell: bash
         run: rm -rf src-tauri/target/release/bundle/nsis

@@ -154,6 +154,14 @@ pub mod qemu {
     /// 内置虚拟机的 initramfs：优先用数据目录下已下载的 glibc 版本，
     /// 其次回退到安装包里随附的那一份。
     pub fn initramfs_path() -> Option<PathBuf> {
+        // 优先用安装包内置的那份（安装即可构建，不用等下载）；
+        // 没有内置时才回退到数据目录里下载过的版本。
+        if let Some(dir) = vm_dir() {
+            let bundled = dir.join(INITRAMFS);
+            if bundled.is_file() && is_glibc_image(&bundled) {
+                return Some(bundled);
+            }
+        }
         let local = engine_vm_dir().join(INITRAMFS);
         if local.is_file() {
             return Some(local);
@@ -171,6 +179,12 @@ pub mod qemu {
     /// 包里自带的是 Alpine(musl) 版本，跑不了 ImageBuilder 的 glibc host 工具，
     /// 所以真正的构建镜像由 CI 产出、挂在 Release 的 `vm` 标签上。
     pub async fn ensure_initramfs() -> AppResult<PathBuf> {
+        // 安装包已经内置镜像时直接返回，不再下载。
+        if let Some(path) = initramfs_path() {
+            if is_glibc_image(&path) {
+                return Ok(path);
+            }
+        }
         let dir = engine_vm_dir();
         let target = dir.join(INITRAMFS);
         if is_glibc_image(&target) {
