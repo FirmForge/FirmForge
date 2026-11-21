@@ -6,6 +6,8 @@ OpenWrt / ImmortalWrt 固件可视化构建器，Windows 桌面应用（Rust + T
 
 ## 使用
 
+完整手册见 [docs/manual.md](docs/manual.md)（应用内页头 `?` 按钮直达）。
+
 1. 从 Releases 下载 `WRT-UI_<版本>_x64-setup.exe` 并安装（当前用户安装，不需要管理员）。
 2. 首次启动后到「设置」确认固件生态与软件源（默认 ImmortalWrt + 国内镜像）。
 3. 「固件构建」→ 选择设备 → 选择软件 → 配置固件 → 确认构建。
@@ -69,6 +71,19 @@ MUI 组件的外观集中在 `src/theme.ts` 覆写；页面里不再写死颜色
 
 `%LOCALAPPDATA%\WRT-UI\`：`settings.json`、`jobs.json`、`jobs\<id>\build.log`、`jobs\<id>\output\`。
 升级安装不会清空；可用环境变量 `WRT_UI_DATA_DIR` 指定其他目录。
+
+设置页「数据目录」可一键更换：选目录后校验可写、把 `settings.json` 与 `jobs.json` 带过去，
+再把路径写入 `<默认目录>/datadir.txt` 并自动重启；想回到默认目录，重选默认目录即可（指针文件会被删除）。
+
+## 编辑器
+
+「配置固件 → 高级脚本」内置 CodeMirror 编辑器（等宽、行号、shell 高亮、与设计系统一致的 2px 硬边框），
+完全离线可用（不加载 CDN）。脚本写入 `/etc/uci-defaults/99-custom.sh`，首次开机执行。
+
+## 固件产物
+
+构建成功后结果页列出产物，可逐个「下载」（存到 `下载/WRT-UI/`）或点「打开产物目录」直接在资源管理器里定位
+`jobs/<id>/output/`，不用再翻数据目录。
 
 ## 从源码构建
 

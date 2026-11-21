@@ -4,17 +4,70 @@ use crate::net::default_mirrors;
 use crate::upstream::default_ecosystem;
 use std::path::{Path, PathBuf};
 
-/// 数据目录：默认系统应用数据目录，可用环境变量覆盖（自动化测试用）。
+/// 数据目录：默认系统应用数据目录；环境变量用于自动化测试，
+/// 用户在设置里改过的目录记在 `<默认目录>/datadir.txt`，启动时优先读它。
 pub fn data_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("WRT_UI_DATA_DIR") {
         if !dir.trim().is_empty() {
             return PathBuf::from(dir);
         }
     }
+    let base = default_data_dir();
+    if let Ok(raw) = std::fs::read_to_string(base.join("datadir.txt")) {
+        let path = PathBuf::from(raw.trim());
+        if !raw.trim().is_empty() && path.is_absolute() {
+            return path;
+        }
+    }
+    base
+}
+
+/// 系统默认数据目录（不含用户自定义）。
+pub fn default_data_dir() -> PathBuf {
     dirs::data_local_dir()
         .or_else(dirs::data_dir)
         .unwrap_or_else(|| PathBuf::from("."))
         .join("WRT-UI")
+}
+
+/// 切换数据目录：校验可写、把现有配置与构建记录带过去，再写指针文件。
+/// 返回新目录；调用方需要重启应用才能生效（Store 在启动时构建）。
+pub fn set_data_dir(target: &str) -> AppResult<PathBuf> {
+    let raw = target.trim();
+    if raw.is_empty() {
+        return Err(AppError::Invalid("目录不能为空".into()));
+    }
+    let path = PathBuf::from(raw);
+    if !path.is_absolute() {
+        return Err(AppError::Invalid("请选择绝对路径".into()));
+    }
+    std::fs::create_dir_all(&path)
+        .map_err(|e| AppError::Invalid(format!("无法创建目录: {e}")))?;
+    // 试写一个探针文件，避免选到只读目录
+    let probe = path.join(".wrt-ui-write-test");
+    std::fs::write(&probe, b"ok").map_err(|e| AppError::Invalid(format!("目录不可写: {e}")))?;
+    let _ = std::fs::remove_file(&probe);
+
+    let current = data_dir();
+    if current != path {
+        for name in ["settings.json", "jobs.json"] {
+            let from = current.join(name);
+            let to = path.join(name);
+            if from.exists() && !to.exists() {
+                let _ = std::fs::copy(&from, &to);
+            }
+        }
+    }
+
+    let base = default_data_dir();
+    std::fs::create_dir_all(&base)?;
+    let pointer = base.join("datadir.txt");
+    if path == base {
+        let _ = std::fs::remove_file(&pointer);
+    } else {
+        std::fs::write(&pointer, path.to_string_lossy().as_bytes())?;
+    }
+    Ok(path)
 }
 
 pub struct Store {

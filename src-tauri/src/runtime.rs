@@ -181,6 +181,8 @@ log() {{ echo "[build] $*"; }}
 
 log "安装构建依赖"
 apk add --no-cache make tar bash coreutils findutils patch diffutils zstd gawk grep gzip unzip bzip2 wget file python3 py3-setuptools perl >/host/apk.log 2>&1
+# glibc 兼容层与 Alpine 版 fakeroot：ImageBuilder 自带的 fakeroot 是 glibc 构建，musl 下跑不起来。
+apk add --no-cache gcompat libc6-compat fakeroot >>/host/apk.log 2>&1 || log "警告: gcompat/fakeroot 安装失败，构建可能中断"
 # ImageBuilder 的 Makefile 用 $(shell which xxx) 解析 SHELL，Alpine 的 busybox 没有 which，
 # 缺这个垫片会报 "env: 'bash': No such file or directory" 并在 _check_profile 处失败。
 printf '#!/bin/sh\ncommand -v "$1"\n' > /usr/local/bin/which && chmod +x /usr/local/bin/which
@@ -188,18 +190,22 @@ printf '#!/bin/sh\ncommand -v "$1"\n' > /usr/local/bin/which && chmod +x /usr/lo
 export SHELL=/bin/bash
 command -v make >/dev/null 2>&1 || {{ log "构建依赖安装失败，详见 apk.log"; exit 10; }}
 
-mkdir -p /work && cd /work || exit 11
+# 关键：构建必须在 VM 自己的文件系统里做。共享目录是 vvfat（FAT），
+# 没有 unix socket 也没有权限位，fakeroot 会在那里超时（libfakeroot: connect: Connection timed out）。
+mkdir -p /host/output /tmp/ib || exit 11
+log "临时空间: $(df -h /tmp | tail -1)"
 log "下载 ImageBuilder"
 log "{url}"
-wget -O ib.tar.zst "{url}" 2>&1 | tail -1
-if [ ! -s ib.tar.zst ]; then log "ImageBuilder 下载失败"; exit 12; fi
+wget -O /tmp/ib.tar.zst "{url}" 2>&1 | tail -1
+if [ ! -s /tmp/ib.tar.zst ]; then log "ImageBuilder 下载失败"; exit 12; fi
 log "解压 ImageBuilder"
-tar --zstd -xf ib.tar.zst || {{ log "解压失败"; exit 13; }}
-IB=$(ls -d /work/{eco}-imagebuilder-* 2>/dev/null | head -1)
+tar --zstd -xf /tmp/ib.tar.zst -C /tmp || {{ log "解压失败（临时空间不足？）"; exit 13; }}
+IB=$(ls -d /tmp/{eco}-imagebuilder-* 2>/dev/null | head -1)
 [ -n "$IB" ] && cd "$IB" || {{ log "未找到解压目录"; exit 14; }}
+rm -f /tmp/ib.tar.zst
 # 构建期下载与固件内软件源都切到所选镜像（ImageBuilder 的源在 repositories.conf，
 # 固件里的默认源在 include/version.mk 的 VERSION_REPO）。
-for f in repositories.conf include/version.mk; do
+for f in repositories repositories.conf include/version.mk; do
   if [ -f "$f" ]; then
     sed -i "s|https://downloads.immortalwrt.org|{mirror}|g;s|https://downloads.openwrt.org|{mirror}|g;s|https://mirrors.vsean.net/openwrt|{mirror}|g" "$f"
   fi
@@ -208,16 +214,24 @@ log "软件源已切到 {mirror}"
 if grep -q "REVISION:=" include/version.mk 2>/dev/null; then
   log "版本信息: $(grep -m1 'REVISION:=' include/version.mk)"
 fi
-mkdir -p /host/output
+# FILES 也要先拷到 VM 里，FAT 上的文件带不了权限位。
+rm -rf /tmp/files
+cp -R /host/files /tmp/files
+chmod -R 755 /tmp/files/etc/uci-defaults 2>/dev/null || true
+# ImageBuilder 自带的是 glibc 版 fakeroot，在 Alpine(musl) 上守护进程起不来，
+# 只用系统装好的 Alpine fakeroot；没装上就退回默认值。
+FR_OPT=""
+if [ -x /usr/bin/fakeroot ]; then FR_OPT="FAKEROOT=/usr/bin/fakeroot"; else log "警告: fakeroot 未安装，可能构建失败"; fi
 log "开始构建固件"
-make image PROFILE={profile} PACKAGES={packages} FILES=/host/files BIN_DIR=/host/output {rootfs}
+make $FR_OPT image PROFILE={profile} PACKAGES={packages} FILES=/tmp/files BIN_DIR=/host/output {rootfs}
 rc=$?
 # 镜像同步会有偶发的个别包下载失败，失败就原样重试一次（opkg 会复用已下载的包）。
 if [ $rc -ne 0 ]; then
   log "首次构建失败（退出码 $rc），重试一次"
-  make image PROFILE={profile} PACKAGES={packages} FILES=/host/files BIN_DIR=/host/output {rootfs}
+  make $FR_OPT image PROFILE={profile} PACKAGES={packages} FILES=/tmp/files BIN_DIR=/host/output {rootfs}
   rc=$?
 fi
+ls -l /host/output 2>/dev/null || true
 log "make 退出码 $rc"
 ls -l /host/output || true
 exit $rc
@@ -237,6 +251,9 @@ exit $rc
         let vm = vm_dir()
             .ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：缺少内核或 initramfs".into()))?;
         let bios = bios_dir(&qemu, &vm);
+        // 按宿主可用内存决定虚拟机大小，并写进日志，出问题能一眼看出来。
+        let memory_mb = wrt_ui_core::winsys::vm_memory_mb();
+        log(&format!("[vm] 内存 {memory_mb} MiB"));
 
         // 共享目录：父目录下的 vm-<job>，QEMU 用 vvfat 直接映射，产物写 output/。
         let work = out_dir
@@ -280,9 +297,9 @@ exit $rc
             .arg("-initrd")
             .arg(vm.join(INITRAMFS))
             .arg("-m")
-            // ImmortalWrt 的 mediatek/filogic ImageBuilder 解压后接近 1GB（tar.zst 本身 720MB），
-            // 根文件系统是 ramfs，内存必须留足，否则解压阶段就被 OOM 打断。
-            .arg("8192")
+            // ImageBuilder 解压后接近 1GB（ramfs），默认给 8 GiB；
+            // 宿主内存紧张时按实际可用内存缩到 2 GiB，避免 qemu 起不来。
+            .arg(memory_mb.to_string())
             .arg("-smp")
             .arg("4")
             .arg("-display")
@@ -339,7 +356,16 @@ exit $rc
             use tokio::io::AsyncBufReadExt;
             let mut reader = tokio::io::BufReader::new(&mut stderr).lines();
             while let Ok(Some(text)) = reader.next_line().await {
-                if !text.trim().is_empty() {
+                if text.trim().is_empty() {
+                    continue;
+                }
+                if text.contains("cannot set up guest memory") {
+                    // 宿主内存不足时 qemu 会直接退出，这里给出能看懂的解释。
+                    log_err(&format!(
+                        "[qemu] {text}
+    宿主可用内存不足以启动内置虚拟机（需要 {memory_mb} MiB），请关闭其他程序后重试。"
+                    ));
+                } else {
                     log_err(&format!("[qemu] {text}"));
                 }
             }

@@ -451,6 +451,32 @@ pub async fn cleanup_job(state: State<'_, AppState>, id: String) -> Result<u64, 
     Ok(bytes)
 }
 
+/// 在资源管理器里打开某个任务的产物目录（构建结束后一键定位固件）。
+#[tauri::command(rename_all = "snake_case")]
+pub async fn open_output_dir(
+    state: State<'_, AppState>,
+    id: String,
+) -> Result<String, AppError> {
+    let dir = state.store.output_dir(&id);
+    tokio::fs::create_dir_all(&dir)
+        .await
+        .map_err(|e| AppError::Io(e.to_string()))?;
+    let path = dir.to_string_lossy().to_string();
+    let program = if cfg!(windows) { "explorer" } else { "xdg-open" };
+    std::process::Command::new(program)
+        .arg(&path)
+        .spawn()
+        .map_err(|e| AppError::Io(e.to_string()))?;
+    Ok(path)
+}
+
+/// 切换数据目录；前端随后重启应用生效。
+#[tauri::command(rename_all = "snake_case")]
+pub async fn set_data_dir(path: String) -> Result<String, AppError> {
+    let target = wrt_ui_core::store::set_data_dir(&path)?;
+    Ok(target.to_string_lossy().to_string())
+}
+
 #[tauri::command(rename_all = "snake_case")]
 pub async fn open_data_dir(state: State<'_, AppState>) -> Result<String, AppError> {
     let dir = state.store.root().to_path_buf();
@@ -465,6 +491,92 @@ pub async fn open_data_dir(state: State<'_, AppState>) -> Result<String, AppErro
         .spawn()
         .map_err(|e| AppError::Io(e.to_string()))?;
     Ok(path)
+}
+
+/// 外部链接白名单：仓库、Wiki、Telegram。只接受 https 且必须是这些前缀。
+const ALLOWED_URLS: &[&str] = &[
+    "https://github.com/MinimaxFlora/WRT-UI",
+    "https://t.me/MomoFlora",
+];
+
+fn url_allowed(url: &str) -> bool {
+    ALLOWED_URLS
+        .iter()
+        .any(|base| url == *base || url.starts_with(&format!("{base}/")) || url.starts_with(&format!("{base}#")))
+}
+
+/// 用系统默认浏览器打开白名单内的链接（不经过 shell，避免参数注入）。
+#[tauri::command(rename_all = "snake_case")]
+pub async fn open_url(url: String) -> Result<(), AppError> {
+    let suspicious = url
+        .chars()
+        .any(|c| c.is_control() || matches!(c, '"' | '\'' | '\\'));
+    if !url.is_ascii() || suspicious {
+        return Err(AppError::Invalid("链接无效".into()));
+    }
+    if !url_allowed(&url) {
+        return Err(AppError::Invalid("链接不在允许列表".into()));
+    }
+    let (program, pre_arg) = if cfg!(windows) {
+        ("rundll32.exe", Some("url.dll,FileProtocolHandler"))
+    } else if cfg!(target_os = "macos") {
+        ("open", None)
+    } else {
+        ("xdg-open", None)
+    };
+    let mut cmd = std::process::Command::new(program);
+    if let Some(arg) = pre_arg {
+        cmd.arg(arg);
+    }
+    cmd.arg(&url)
+        .spawn()
+        .map_err(|e| AppError::Io(e.to_string()))?;
+    Ok(())
+}
+
+/// 打开 WebView 开发者工具（排查界面问题时用）。
+#[tauri::command(rename_all = "snake_case")]
+pub async fn open_devtools(window: tauri::WebviewWindow) -> Result<(), AppError> {
+    window.open_devtools();
+    Ok(())
+}
+
+/// 读取 UWP 环回豁免名单（Windows 专有，其他平台返回空）。
+#[tauri::command(rename_all = "snake_case")]
+pub async fn uwp_loopback_list() -> Result<Vec<String>, AppError> {
+    if !cfg!(windows) {
+        return Ok(Vec::new());
+    }
+    let out = std::process::Command::new("CheckNetIsolation.exe")
+        .args(["LoopbackExempt", "-s"])
+        .output()
+        .map_err(|e| AppError::Io(e.to_string()))?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    Ok(wrt_ui_core::winsys::parse_loopback(&text))
+}
+
+/// 给指定 UWP 包加环回豁免：`CheckNetIsolation LoopbackExempt -a -n=<包名>`。
+#[tauri::command(rename_all = "snake_case")]
+pub async fn uwp_loopback_add(package: String) -> Result<(), AppError> {
+    let name = package.trim();
+    let ok = (3..=200).contains(&name.len())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
+    if !ok {
+        return Err(AppError::Invalid("包名无效".into()));
+    }
+    if !cfg!(windows) {
+        return Err(AppError::Invalid("仅 Windows 支持".into()));
+    }
+    let status = std::process::Command::new("CheckNetIsolation.exe")
+        .args(["LoopbackExempt", "-a", &format!("-n={name}")])
+        .status()
+        .map_err(|e| AppError::Io(e.to_string()))?;
+    if !status.success() {
+        return Err(AppError::Invalid("添加失败，请检查包名".into()));
+    }
+    Ok(())
 }
 
 async fn dir_size(dir: &Path) -> u64 {

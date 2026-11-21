@@ -5,6 +5,9 @@ import DarkModeOutlined from "@mui/icons-material/DarkModeOutlined";
 import LightModeOutlined from "@mui/icons-material/LightModeOutlined";
 import HistoryIcon from "@mui/icons-material/History";
 import SettingsIcon from "@mui/icons-material/Settings";
+import HelpOutlineIcon from "@mui/icons-material/Help";
+import SendIcon from "@mui/icons-material/Send";
+import GitHubIcon from "@mui/icons-material/GitHub";
 import logo from "./assets/logo.png";
 import { api, isDesktop } from "./api";
 import BuildPage from "./pages/BuildPage";
@@ -31,6 +34,12 @@ import { useUpdateCheck } from "./update";
 import type { Environment, Settings } from "./types";
 
 type Page = "build" | "history" | "settings";
+
+const LINKS: { url: string; labelKey: MessageKey; icon: typeof HelpOutlineIcon }[] = [
+  { url: "https://github.com/MinimaxFlora/WRT-UI/blob/master/docs/manual.md", labelKey: "link.wiki", icon: HelpOutlineIcon },
+  { url: "https://t.me/MomoFlora", labelKey: "link.telegram", icon: SendIcon },
+  { url: "https://github.com/MinimaxFlora/WRT-UI", labelKey: "link.github", icon: GitHubIcon },
+];
 
 const THEME_CHOICES: { value: ThemeMode; icon: typeof LightModeOutlined; labelKey: MessageKey }[] = [
   { value: "light", icon: LightModeOutlined, labelKey: "theme.light" },
@@ -77,7 +86,8 @@ export default function App() {
       const loaded = await api.settings();
       setSettings(loaded);
       // settings.json 记录上次的主题与语言；localStorage 只用于首帧。
-      if (loaded.theme === "light" || loaded.theme === "dark") hydrate(loaded.theme);
+      if (loaded.theme === "light" || loaded.theme === "dark" || loaded.theme === "system")
+        hydrate(loaded.theme);
       if (loaded.language) hydrateLang(loaded.language as Lang);
       const environment = await api.environment();
       setEnv(environment);
@@ -103,7 +113,16 @@ export default function App() {
   const envText = env ? `${envName} · ${env.available ? t("env.ready") : t("env.down")}` : t("env.checking");
 
   return (
-    <Box sx={{ display: "flex", height: "100vh", backgroundColor: paper, overflow: "hidden" }}>
+    <Box
+      sx={{
+        display: "flex",
+        height: "100vh",
+        backgroundColor: paper,
+        overflow: "hidden",
+        // 整窗 2px 墨黑外框：暗色下随 --color-ink 变白，保持“实体块”的观感
+        border,
+      }}
+    >
       <Box
         component="aside"
         sx={{
@@ -212,36 +231,7 @@ export default function App() {
         </Box>
 
         <Box sx={{ mt: "auto", p: { xs: 1, md: 1.5 }, borderTop: border }}>
-          <Typography
-            component="p"
-            sx={{ ...labelStyle, letterSpacing: "0.12em", display: { xs: "none", md: "block" } }}
-          >
-            {t("notice.env")}
-          </Typography>
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", mt: { xs: 0, md: 1 }, minWidth: 0 }}>
-            <Box
-              sx={{
-                width: 10,
-                height: 10,
-                flexShrink: 0,
-                backgroundColor: envTone,
-                border: `2px solid ${ink}`,
-              }}
-            />
-            <Typography
-              sx={{
-                display: { xs: "none", md: "block" },
-                fontSize: 12,
-                fontWeight: 700,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {envName || t("env.checking")}
-            </Typography>
-          </Stack>
-          <Box sx={{ mt: 1.25, display: { xs: "none", md: "block" } }}>
+          <Box sx={{ display: { xs: "none", md: "block" } }}>
             <MonoLabel tone="paper">
               {settings ? (settings.ecosystem === "openwrt" ? "OpenWrt" : "ImmortalWrt") : "—"}
             </MonoLabel>
@@ -351,6 +341,38 @@ export default function App() {
                       cursor: "pointer",
                       transition: "background-color var(--ease-out)",
                       "&:hover": { backgroundColor: active ? activeFill : lime, color: active ? activeText : onAccent },
+                    }}
+                  >
+                    <Icon sx={{ fontSize: 16 }} />
+                  </Box>
+                );
+              })}
+            </Box>
+            <Box
+              sx={{ display: "inline-flex", border, backgroundColor: paper, boxShadow: shadowSm }}
+            >
+              {LINKS.map((link, index) => {
+                const Icon = link.icon;
+                return (
+                  <Box
+                    component="button"
+                    type="button"
+                    key={link.url}
+                    title={t(link.labelKey)}
+                    aria-label={t(link.labelKey)}
+                    onClick={() => void api.openUrl(link.url).catch(() => undefined)}
+                    sx={{
+                      display: "grid",
+                      placeItems: "center",
+                      width: 34,
+                      height: 32,
+                      border: 0,
+                      borderLeft: index === 0 ? 0 : border,
+                      backgroundColor: paper,
+                      color: ink,
+                      cursor: "pointer",
+                      transition: "background-color var(--ease-out)",
+                      "&:hover": { backgroundColor: lime, color: onAccent },
                     }}
                   >
                     <Icon sx={{ fontSize: 16 }} />

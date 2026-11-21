@@ -59,7 +59,14 @@ export function MonoLabel({
           py: "2px",
           border: tone === "paper" || tone === "slab" ? `2px solid ${ink}` : "0",
           backgroundColor: TONE_BG[tone],
-          color: tone === "pink" ? onPink : tone === "ink" ? paper : onAccent,
+          color:
+            tone === "ink"
+              ? paper
+              : tone === "pink"
+                ? onPink
+                : tone === "paper" || tone === "slab"
+                  ? ink
+                  : onAccent,
           whiteSpace: "nowrap",
         },
         sx,

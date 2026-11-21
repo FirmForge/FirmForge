@@ -65,7 +65,7 @@ export function useUpdateCheck(auto = true): UpdateState {
   const running = useRef(false);
 
   const releaseUrl = (version: string) =>
-    `https://github.com/MinimaxFlora/WRT-UI/releases/tag/v${version.replace(/^v/i, "")}`;
+    `https://github.com/MinimaxFlora/WRT-UI/releases/tag/v${String(version).replace(/^v/i, "")}`;
 
   const checkNow = useCallback(async () => {
     if (!isDesktop() || running.current) return;
@@ -97,7 +97,7 @@ export function useUpdateCheck(auto = true): UpdateState {
       pending.current = found;
       const result: UpdateInfo = {
         current: local,
-        latest: found.version.replace(/^v/i, ""),
+        latest: String(found.version).replace(/^v/i, ""),
         available: true,
         notes: found.body ?? "",
         url: releaseUrl(found.version),

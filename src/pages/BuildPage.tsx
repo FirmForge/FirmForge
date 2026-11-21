@@ -16,7 +16,7 @@ import type {
 import { ConfigStep, DeviceStep, PackagesStep, ResultStep, ReviewStep } from "./BuildSteps";
 import { ErrorNotice, StepRail } from "../components/Common";
 import { useI18n } from "../i18n";
-import { border, ink, labelStyle } from "../styles/tokens";
+import { border, ink, labelStyle, paper } from "../styles/tokens";
 
 type Props = {
   settings: Settings;
@@ -315,6 +315,15 @@ export default function BuildPage({ settings, env, onNotify }: Props) {
     }
   }, [job, onNotify]);
 
+  const openOutputDir = useCallback(async () => {
+    if (!job) return;
+    try {
+      await api.openOutputDir(job.id);
+    } catch (e) {
+      setError(message(e));
+    }
+  }, [job]);
+
   const download = useCallback(
     async (name: string) => {
       if (!job) return;
@@ -449,6 +458,7 @@ export default function BuildPage({ settings, env, onNotify }: Props) {
           busy={busy}
           onCancel={() => void cancel()}
           onDownload={(name) => void download(name)}
+          onOpenDir={() => void openOutputDir()}
           onCleanup={() => void cleanup()}
           onNewBuild={restart}
         />
@@ -461,24 +471,35 @@ export default function BuildPage({ settings, env, onNotify }: Props) {
           sx={{
             alignItems: { sm: "center" },
             borderTop: border,
-            pt: 2.5,
+            pt: 2,
+            pb: 1,
+            position: "sticky",
+            bottom: 0,
+            zIndex: 2,
+            backgroundColor: paper,
           }}
         >
-          <Stack direction="row" spacing={1.5}>
-            <Button disabled={step === 0 || busy} onClick={() => setStep(Math.max(0, step - 1))}>
-              {t("common.back")}
-            </Button>
-            <Button variant="contained" onClick={next} disabled={busy} aria-busy={busy}>
-              {busy ? t("common.busy") : step === 3 ? t("common.start") : t("common.next")}
-            </Button>
-          </Stack>
+          <Button disabled={step === 0 || busy} onClick={() => setStep(Math.max(0, step - 1))}>
+            {t("common.back")}
+          </Button>
+          <Box sx={{ flex: 1 }} />
+          <Button
+            variant="contained"
+            onClick={next}
+            disabled={busy}
+            aria-busy={busy}
+            sx={{ alignSelf: { xs: "stretch", sm: "center" }, ml: { xs: 0, sm: 2 } }}
+          >
+            {busy ? t("common.busy") : step === 3 ? t("common.start") : t("common.next")}
+          </Button>
           {draft.mirror ? (
             <Typography
               sx={{
                 ...labelStyle,
                 letterSpacing: "0.04em",
                 fontSize: 11,
-                ml: { sm: "auto" },
+                display: { xs: "none", lg: "block" },
+                ml: 2,
                 textAlign: { xs: "left", sm: "right" },
                 wordBreak: "break-all",
                 color: ink,

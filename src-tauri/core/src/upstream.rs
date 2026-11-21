@@ -294,18 +294,27 @@ pub fn parse_feeds(text: &str) -> Vec<String> {
     let mut out = Vec::new();
     for line in text.lines() {
         let fields: Vec<&str> = line.split_whitespace().collect();
-        // 上游同时存在 `src-git` 与原生的 `src/gz` 两种写法。
+        // 上游同时存在 `src-git` / `src-git-full` 与原生的 `src/gz` 两种写法。
         if fields.len() < 3 || !(fields[0].starts_with("src-") || fields[0].starts_with("src/")) {
             continue;
         }
-        // 索引目录名是第三列 URL 的末段（`.../packages/x86_64/base` → `base`）；
-        // 第二列的 `openwrt_base` 带前缀，拼出的路径在上游不存在。
-        let segment = fields[2]
-            .trim_end_matches('/')
-            .rsplit('/')
-            .next()
-            .unwrap_or(fields[1]);
-        let name = segment.split(['?', '#']).next().unwrap_or(segment);
+        let third = fields[2];
+        // `src-git*` 的第三列是 git 地址（可能带 ^commit），索引目录名要退回第二列；
+        // `src/gz` 的第三列才是索引目录，末段即目录名。
+        let looks_like_git = third.contains('^') || third.ends_with(".git");
+        let raw = if looks_like_git {
+            fields[1]
+        } else {
+            third.trim_end_matches('/').rsplit('/').next().unwrap_or(fields[1])
+        };
+        // 第二列常带发行版前缀（`openwrt_base`、`immortalwrt_luci`），去掉后才是镜像目录名。
+        let name = raw
+            .strip_prefix("openwrt_")
+            .or_else(|| raw.strip_prefix("openwrt-"))
+            .or_else(|| raw.strip_prefix("immortalwrt_"))
+            .or_else(|| raw.strip_prefix("immortalwrt-"))
+            .unwrap_or(raw);
+        let name = name.split(['?', '#']).next().unwrap_or(name);
         if !valid_part(name) || !seen.insert(name.to_string()) {
             continue;
         }
@@ -317,7 +326,8 @@ pub fn parse_feeds(text: &str) -> Vec<String> {
     out
 }
 
-async fn discover_feeds(fetcher: &Fetcher, url: &str) -> (Vec<String>, String) {
+/// 发布镜像通常不带 feeds.conf，读不到就用常见源列表，不当成异常。
+async fn discover_feeds(fetcher: &Fetcher, url: &str) -> Vec<String> {
     let fallback = vec![
         "base".to_string(),
         "luci".to_string(),
@@ -329,18 +339,12 @@ async fn discover_feeds(fetcher: &Fetcher, url: &str) -> (Vec<String>, String) {
         Ok(text) => {
             let feeds = parse_feeds(&text);
             if feeds.is_empty() {
-                (
-                    fallback,
-                    "未能读取上游软件源清单，使用常见源列表".to_string(),
-                )
+                fallback
             } else {
-                (feeds, String::new())
+                feeds
             }
         }
-        Err(_) => (
-            fallback,
-            "未能读取上游软件源清单，使用常见源列表".to_string(),
-        ),
+        Err(_) => fallback,
     }
 }
 
@@ -368,7 +372,7 @@ pub async fn packages(
         return Err(AppError::Invalid("无法找到设备或软件包架构".into()));
     }
     let arch = doc.arch_packages.clone();
-    let (feeds, discovery_warning) = discover_feeds(
+    let feeds = discover_feeds(
         fetcher,
         &format!("{mirror}/releases/{version}/packages/{arch}/feeds.conf"),
     )
@@ -418,9 +422,6 @@ pub async fn packages(
 
     let mut items: Vec<PackageItem> = Vec::new();
     let mut warnings: Vec<String> = Vec::new();
-    if !discovery_warning.is_empty() {
-        warnings.push(discovery_warning);
-    }
     while let Some(res) = set.join_next().await {
         match res {
             Ok((feed, Ok(idx))) => {
@@ -531,6 +532,21 @@ mod tests {
         assert!(!valid_version("25.12.0-rc1"));
     }
 
+
+    /// 真实响应体（ImmortalWrt 25.12.2 发布镜像），关键点是 `src-git-full` + ^commit。
+    const REAL_FEEDS: &str = "src-git-full base https://github.com/immortalwrt/immortalwrt.git^3682a14dd5ec6382af65d7e72b5b415b5f3173a8
+src-git packages https://github.com/immortalwrt/packages.git^fa25995d74a720c1c98bf6265d3dd8b4eb620d1f
+src-git luci https://github.com/immortalwrt/luci.git^c38e5665e826f5e6e2ac9168e167ee368d0969d9
+src-git routing https://github.com/openwrt/routing.git^48c808034414a2112cf9d5261a20a320e8d0d170
+src-git telephony https://github.com/openwrt/telephony.git^c58ec5a6703966dcccb53d0919698c8aba3a9ef5";
+
+    #[test]
+    fn feeds_parser_reads_git_full_style() {
+        assert_eq!(
+            parse_feeds(REAL_FEEDS),
+            vec!["base", "packages", "luci", "routing", "telephony"]
+        );
+    }
 
     #[test]
     fn feeds_parser_skips_noise_and_dedupes() {

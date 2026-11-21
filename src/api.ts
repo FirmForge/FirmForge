@@ -76,11 +76,17 @@ export const api = {
   readLog: (id: string, offset: number) =>
     call<{ text: string; next: number }>("read_log", { id, offset }),
   artifacts: (id: string) => call<Artifact[]>("list_artifacts", { id }),
+  openUrl: (url: string) => call<void>("open_url", { url }),
+  openDevtools: () => call<void>("open_devtools"),
+  uwpLoopbackList: () => call<string[]>("uwp_loopback_list"),
+  uwpLoopbackAdd: (pkg: string) => call<void>("uwp_loopback_add", { package: pkg }),
+  openOutputDir: (id: string) => call<string>("open_output_dir", { id }),
   saveArtifact: (id: string, name: string) =>
     call<string>("save_artifact", { id, name }),
   cleanupPreview: (id: string) => call<CleanupInfo>("cleanup_preview", { id }),
   cleanup: (id: string) => call<number>("cleanup_job", { id }),
   openDataDir: () => call<string>("open_data_dir"),
+  setDataDir: (path: string) => call<string>("set_data_dir", { path }),
 
 };
 

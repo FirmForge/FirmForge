@@ -11,3 +11,4 @@ pub mod scripts;
 pub mod store;
 pub mod upstream;
 pub mod util;
+pub mod winsys;

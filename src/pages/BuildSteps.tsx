@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { ScriptEditor } from "../components/ScriptEditor";
 import {
   Box,
   Button,
@@ -291,7 +292,7 @@ export function DeviceStep(props: {
       {props.loading ? null : (
         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap" }}>
           <Button size="small" disabled={props.page <= 1} onClick={() => props.onPage(props.page - 1)}>
-            {t("common.back")}
+            {t("device.prevPage")}
           </Button>
           <Typography sx={{ fontSize: 12 }}>
             {t("device.pageInfo", {
@@ -302,7 +303,7 @@ export function DeviceStep(props: {
             })}
           </Typography>
           <Button size="small" disabled={props.page >= total} onClick={() => props.onPage(props.page + 1)}>
-            {t("common.next")}
+            {t("device.nextPage")}
           </Button>
         </Stack>
       )}
@@ -681,14 +682,12 @@ export function ConfigStep(props: {
 
         <Panel sx={{ gridColumn: "1 / -1" }}>
           <SubHead index="04" title={t("config.advanced")} meta="/etc/uci-defaults/99-custom.sh" />
-          <TextField
+          <ScriptEditor
             value={props.draft.script}
-            onChange={(e) => props.patch({ script: e.target.value })}
-            multiline
-            minRows={9}
-            fullWidth
-            placeholder={"#!/bin/sh\nopkg update"}
-            slotProps={{ htmlInput: { spellCheck: false, "aria-label": t("config.advanced") } }}
+            onChange={(next) => props.patch({ script: next })}
+            path="/etc/uci-defaults/99-custom.sh"
+            height={300}
+            ariaLabel={t("config.advanced")}
           />
           <Typography sx={{ fontSize: 11.5, mt: 1.5 }}>{t("config.advancedNote")}</Typography>
         </Panel>
@@ -780,6 +779,7 @@ export function ResultStep(props: {
   busy: boolean;
   onCancel: () => void;
   onDownload: (name: string) => void;
+  onOpenDir: () => void;
   onCleanup: () => void;
   onNewBuild: () => void;
 }) {
@@ -848,6 +848,14 @@ export function ResultStep(props: {
           <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", p: 2, borderBottom: border }}>
             <MonoLabel tone="lime">{t("result.artifacts")}</MonoLabel>
             <Typography sx={{ fontSize: 12 }}>{t("result.artifactsHint")}</Typography>
+            <Button
+              size="small"
+              variant="outlined"
+              sx={{ ml: "auto" }}
+              onClick={props.onOpenDir}
+            >
+              {t("result.openDir")}
+            </Button>
           </Stack>
           <Table size="small">
             <TableHead>

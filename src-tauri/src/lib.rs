@@ -172,6 +172,7 @@ pub fn run() {
             None,
         ))
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .manage(state)
@@ -196,6 +197,12 @@ pub fn run() {
             commands::cleanup_preview,
             commands::cleanup_job,
             commands::open_data_dir,
+            commands::set_data_dir,
+            commands::open_output_dir,
+            commands::open_url,
+            commands::open_devtools,
+            commands::uwp_loopback_list,
+            commands::uwp_loopback_add,
         ])
         .setup(|app| {
             build_tray(app.handle())?;
