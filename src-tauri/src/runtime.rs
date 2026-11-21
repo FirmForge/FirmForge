@@ -355,7 +355,7 @@ exit $rc
         // 注意：磁盘镜像不能放在共享目录里，vvfat 不支持 >2GB 的文件。
         let disk = work.with_extension("img");
         if !disk.exists() {
-            std::fs::File::create(&disk)?.set_len(8 * 1024 * 1024 * 1024)?;
+            std::fs::File::create(&disk)?.set_len(4 * 1024 * 1024 * 1024)?;
         }
         std::fs::write(work.join("run.sh"), build_script(spec))?;
         let mut wrote = 0;
@@ -489,6 +489,8 @@ exit $rc
                 )))
             }
         }
+
+        let _ = std::fs::remove_file(&disk);
 
         // 产物从 output/ 复制到任务产物目录。
         std::fs::create_dir_all(out_dir)?;
