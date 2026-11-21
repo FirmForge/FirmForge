@@ -78,6 +78,7 @@ jobs:
           cargo test
 
       - name: 内置虚拟机镜像（随安装包分发）
+        shell: bash
         run: |
           set -euo pipefail
           mkdir -p src-tauri/resources/vm

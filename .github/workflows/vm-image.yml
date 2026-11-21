@@ -55,8 +55,8 @@ jobs:
           set -euo pipefail
           mkdir -p old
           # 归档里存在硬链接，单次解包会因目标尚未落地而报错，跑两遍补全
-          (cd old && gzip -dc ../src-tauri/resources/vm/initramfs.cpio.gz | cpio -idmu --no-absolute-filenames --quiet) || true
-          (cd old && gzip -dc ../src-tauri/resources/vm/initramfs.cpio.gz | cpio -idmu --no-absolute-filenames --quiet) || true
+          (cd old && gzip -dc ../assets/vm-base.cpio.gz | cpio -idmu --no-absolute-filenames --quiet) || true
+          (cd old && gzip -dc ../assets/vm-base.cpio.gz | cpio -idmu --no-absolute-filenames --quiet) || true
           test -f old/wrtmods/kernel/drivers/net/net_failover.ko
           sudo cp old/init root/init
           sudo chmod 755 root/init
