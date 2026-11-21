@@ -1,6 +1,6 @@
 """把 QEMU 运行所需的最小文件集收集到 src-tauri/resources/qemu。
 
-WRT-UI 自带 VM 引擎，不依赖用户安装 Docker / WSL / QEMU。这个脚本在构建机器上执行一次，
+FirmForge 自带 VM 引擎，不依赖用户安装 Docker / WSL / QEMU。这个脚本在构建机器上执行一次，
 把 qemu-system-x86_64.exe、它依赖的 MinGW 运行时 DLL、以及 BIOS 放进 resources/qemu，
 随 Tauri 安装包一起分发。
 

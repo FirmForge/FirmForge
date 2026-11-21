@@ -36,9 +36,9 @@ import type { Environment, Settings } from "./types";
 type Page = "build" | "history" | "settings";
 
 const LINKS: { url: string; labelKey: MessageKey; icon: typeof HelpOutlineIcon }[] = [
-  { url: "https://github.com/MinimaxFlora/WRT-UI/blob/master/docs/manual.md", labelKey: "link.wiki", icon: HelpOutlineIcon },
+  { url: "https://github.com/FirmForge/FirmForge/blob/master/docs/manual.md", labelKey: "link.wiki", icon: HelpOutlineIcon },
   { url: "https://t.me/MomoFlora", labelKey: "link.telegram", icon: SendIcon },
-  { url: "https://github.com/MinimaxFlora/WRT-UI", labelKey: "link.github", icon: GitHubIcon },
+  { url: "https://github.com/FirmForge/FirmForge", labelKey: "link.github", icon: GitHubIcon },
 ];
 
 const THEME_CHOICES: { value: ThemeMode; icon: typeof LightModeOutlined; labelKey: MessageKey }[] = [
@@ -151,14 +151,14 @@ export default function App() {
               placeItems: "center",
             }}
           >
-            <Box component="img" src={logo} alt="WRT-UI" sx={{ width: 32, height: 32, display: "block" }} />
+            <Box component="img" src={logo} alt="FirmForge" sx={{ width: 32, height: 32, display: "block" }} />
           </Box>
           <Box sx={{ minWidth: 0, display: { xs: "none", md: "block" } }}>
             <Typography
               component="p"
               sx={{ fontSize: 22, fontWeight: 900, lineHeight: 1, letterSpacing: "-0.02em" }}
             >
-              WRT-UI
+              FirmForge
             </Typography>
             <Typography component="p" sx={{ ...labelStyle, letterSpacing: "0.12em", mt: 0.5 }}>
               {t("app.subtitle")}
@@ -239,13 +239,13 @@ export default function App() {
           <Box sx={{ mt: 2, pt: 2, borderTop: border, display: { xs: "none", md: "block" } }}>
             <Typography
               component="label"
-              htmlFor="wrt-ui-language"
+              htmlFor="firmforge-language"
               sx={{ ...labelStyle, letterSpacing: "0.1em", fontSize: 11, display: "block", mb: 0.75 }}
             >
               {t("lang.label")}
             </Typography>
             <Select
-              id="wrt-ui-language"
+              id="firmforge-language"
               value={lang}
               onChange={(e) => setLang(e.target.value as Lang)}
               size="small"

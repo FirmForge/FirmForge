@@ -43,7 +43,7 @@ const DICT: Record<Lang, Messages> = {
   ru,
 };
 
-const STORAGE_KEY = "wrt-ui.lang";
+const STORAGE_KEY = "firmforge.lang";
 const FALLBACK: Lang = "zh-Hans";
 
 /** 语言标签 → 受支持语言；zh 需要区分简繁，其余按主标签匹配。 */

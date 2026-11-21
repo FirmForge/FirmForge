@@ -569,7 +569,7 @@ src-git telephony https://github.com/openwrt/telephony.git^c58ec5a6703966dcccb53
 
     #[test]
     fn hostname_and_zone_rules() {
-        assert!(valid_hostname("WRT-UI"));
+        assert!(valid_hostname("FirmForge"));
         assert!(valid_hostname("my-router"));
         assert!(!valid_hostname("-bad"));
         assert!(!valid_hostname("bad host"));

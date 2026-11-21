@@ -8,7 +8,7 @@ from pathlib import Path
 
 from PIL import Image
 
-SRC = Path(__file__).resolve().parent.parent / "assets" / "wrt-ui-logo.png"
+SRC = Path(__file__).resolve().parent.parent / "assets" / "firmforge-logo.png"
 OUT = Path(__file__).resolve().parent.parent / "src-tauri" / "icons"
 
 PNG_SIZES = {"32x32.png": 32, "128x128.png": 128, "128x128@2x.png": 256, "icon.png": 512}

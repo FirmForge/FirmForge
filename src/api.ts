@@ -35,7 +35,7 @@ function decodeError(raw: unknown): Error {
 
 async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!isDesktop()) {
-    throw new Error("该操作需要 WRT-UI 桌面版运行时");
+    throw new Error("该操作需要 FirmForge 桌面版运行时");
   }
   try {
     return await invoke<T>(command, args);
@@ -109,7 +109,7 @@ export const autostart = {
     }
   },
   set: async (on: boolean): Promise<void> => {
-    if (!isDesktop()) throw new Error("该操作需要 WRT-UI 桌面版运行时");
+    if (!isDesktop()) throw new Error("该操作需要 FirmForge 桌面版运行时");
     if (on) await enableAutostart();
     else await disableAutostart();
   },

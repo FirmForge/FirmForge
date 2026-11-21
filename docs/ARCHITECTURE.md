@@ -2,7 +2,7 @@
 
 ## 1. 形态
 
-WRT-UI 是 **Tauri 3 桌面外壳 + 本地打包前端 + Rust 业务后端**。
+FirmForge 是 **Tauri 3 桌面外壳 + 本地打包前端 + Rust 业务后端**。
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -26,7 +26,7 @@ WRT-UI 是 **Tauri 3 桌面外壳 + 本地打包前端 + Rust 业务后端**。
 
 ## 2. 模块边界
 
-工程分为**两层**：`src-tauri/core`（`wrt-ui-core`，纯业务，不依赖 Tauri/WebView2）与 `src-tauri/src`（桌面外壳）。
+工程分为**两层**：`src-tauri/core`（`firmforge-core`，纯业务，不依赖 Tauri/WebView2）与 `src-tauri/src`（桌面外壳）。
 单元测试跑在 core 里，因此可以在没有 WebView2 的环境（含 CI 容器）执行。
 
 | 模块 | 归属 | 职责 | 明确不负责 |
@@ -89,7 +89,7 @@ WRT-UI 是 **Tauri 3 桌面外壳 + 本地打包前端 + Rust 业务后端**。
 ## 6. 数据目录
 
 ```
-%LOCALAPPDATA%\WRT-UI\
+%LOCALAPPDATA%\FirmForge\
 ├─ settings.json          # 生态、软件源、镜像加速、代理
 ├─ jobs.json              # 任务记录（原子写，含中断纠正）
 └─ jobs\<id>\
@@ -97,11 +97,11 @@ WRT-UI 是 **Tauri 3 桌面外壳 + 本地打包前端 + Rust 业务后端**。
    └─ output\             # 固件产物
 ```
 
-可用环境变量 `WRT_UI_DATA_DIR` 覆盖，用于自动化测试与便携部署。
+可用环境变量 `FIRMFORGE_DATA_DIR` 覆盖，用于自动化测试与便携部署。
 
 ## 7. 构建与发布
 
 - 目标固定 `x86_64-pc-windows-gnu`（本机无 MSVC），链接器 `x86_64-w64-mingw32-gcc`。
 - `.cargo/config.toml` 使用 rsproxy sparse 镜像（只作用于本仓库）。
-- 图标唯一视觉源 `assets/wrt-ui-logo.png` → `scripts/gen_icons.py` 生成 png/ico，不重绘。
+- 图标唯一视觉源 `assets/firmforge-logo.png` → `scripts/gen_icons.py` 生成 png/ico，不重绘。
 - NSIS 安装器，`installMode: currentUser`（不强制管理员），中文/英文安装语言。

@@ -1,6 +1,6 @@
 """把 Alpine minirootfs 打成可引导的 initramfs（cpio newc + gzip）。
 
-用途：WRT-UI 自带的 Linux 运行环境。内核用 Alpine 的 vmlinuz-virt，根文件系统
+用途：FirmForge 自带的 Linux 运行环境。内核用 Alpine 的 vmlinuz-virt，根文件系统
 就是这个 initramfs（内含 busybox / apk / musl），完全不需要 WSL、Docker 或宿主机
 上的 Linux 工具链。
 

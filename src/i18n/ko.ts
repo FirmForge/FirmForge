@@ -138,7 +138,7 @@ export const ko: Messages = {
   "result.running": "빌드 진행 중 · {stage}",
   "result.preparing": "준비",
   "result.artifacts": "산출물",
-  "result.artifactsHint": "다운로드 폴더의 WRT-UI에 저장합니다",
+  "result.artifactsHint": "다운로드 폴더의 FirmForge에 저장합니다",
   "result.download": "저장",
   "result.noArtifactsTitle": "내려받을 산출물이 없습니다",
   "result.noArtifactsHint": "빌드는 성공했지만 출력 폴더가 비어 있습니다. 로그를 확인하세요.",
@@ -202,7 +202,7 @@ export const ko: Messages = {
   "notice.tip": "알림",
   "error.label": "오류",
   "error.needDesktopTitle": "데스크톱 런타임이 필요합니다",
-  "error.needDesktopBody": "브라우저 미리보기에는 백엔드가 없습니다. WRT-UI 데스크톱 앱에서 실행하세요.",
+  "error.needDesktopBody": "브라우저 미리보기에는 백엔드가 없습니다. FirmForge 데스크톱 앱에서 실행하세요.",
   "error.needDesktopFoot": "설치 버전은 로컬 자원으로 시작하며 브라우저나 개발 서버가 필요하지 않습니다. 설치 버전에서 이 화면이 보이면 데이터 폴더 권한을 확인하고 다시 시작하세요.",
   "error.engine": "{name} 사용 불가: {message}",
 

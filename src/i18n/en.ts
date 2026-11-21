@@ -138,7 +138,7 @@ export const en: Messages = {
   "result.running": "Building · {stage}",
   "result.preparing": "Preparing",
   "result.artifacts": "Artifacts",
-  "result.artifactsHint": "Saved to the WRT-UI folder in your Downloads",
+  "result.artifactsHint": "Saved to the FirmForge folder in your Downloads",
   "result.download": "Save",
   "result.noArtifactsTitle": "No downloadable artifacts",
   "result.noArtifactsHint": "The build succeeded but the output folder is empty; check the log.",
@@ -202,7 +202,7 @@ export const en: Messages = {
   "notice.tip": "Notice",
   "error.label": "Error",
   "error.needDesktopTitle": "Desktop runtime required",
-  "error.needDesktopBody": "A browser preview has no backend. Please run the WRT-UI desktop app.",
+  "error.needDesktopBody": "A browser preview has no backend. Please run the FirmForge desktop app.",
   "error.needDesktopFoot": "Installed builds load local assets and need no browser or dev server. If this is an installed build, check data folder permissions and restart.",
   "error.engine": "{name} unavailable: {message}",
 

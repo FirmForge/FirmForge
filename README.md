@@ -1,4 +1,4 @@
-# WRT-UI
+# FirmForge
 
 OpenWrt / ImmortalWrt 固件可视化构建器，Windows 桌面应用（Rust + Tauri 3）。
 
@@ -8,10 +8,10 @@ OpenWrt / ImmortalWrt 固件可视化构建器，Windows 桌面应用（Rust + T
 
 完整手册见 [docs/manual.md](docs/manual.md)（应用内页头 `?` 按钮直达）。
 
-1. 从 Releases 下载 `WRT-UI_<版本>_x64-setup.exe` 并安装（当前用户安装，不需要管理员）。
+1. 从 Releases 下载 `FirmForge_<版本>_x64-setup.exe` 并安装（当前用户安装，不需要管理员）。
 2. 首次启动后到「设置」确认固件生态与软件源（默认 ImmortalWrt + 国内镜像）。
 3. 「固件构建」→ 选择设备 → 选择软件 → 配置固件 → 确认构建。
-4. 构建完成后在结果页把产物保存到系统下载目录的 `WRT-UI` 文件夹。
+4. 构建完成后在结果页把产物保存到系统下载目录的 `FirmForge` 文件夹。
 
 应用只用**内置 VM 引擎**：安装包自带 Alpine 内核与 initramfs，构建时由应用启动一个 QEMU 虚拟机
 在里面跑 ImageBuilder，**不需要 WSL、Docker 或任何用户侧 Linux 环境**，装完即可直接构建。
@@ -69,8 +69,8 @@ MUI 组件的外观集中在 `src/theme.ts` 覆写；页面里不再写死颜色
 
 ## 数据位置
 
-`%LOCALAPPDATA%\WRT-UI\`：`settings.json`、`jobs.json`、`jobs\<id>\build.log`、`jobs\<id>\output\`。
-升级安装不会清空；可用环境变量 `WRT_UI_DATA_DIR` 指定其他目录。
+`%LOCALAPPDATA%\FirmForge\`：`settings.json`、`jobs.json`、`jobs\<id>\build.log`、`jobs\<id>\output\`。
+升级安装不会清空；可用环境变量 `FIRMFORGE_DATA_DIR` 指定其他目录。
 
 设置页「数据目录」可一键更换：选目录后校验可写、把 `settings.json` 与 `jobs.json` 带过去，
 再把路径写入 `<默认目录>/datadir.txt` 并自动重启；想回到默认目录，重选默认目录即可（指针文件会被删除）。
@@ -82,14 +82,14 @@ MUI 组件的外观集中在 `src/theme.ts` 覆写；页面里不再写死颜色
 
 ## 固件产物
 
-构建成功后结果页列出产物，可逐个「下载」（存到 `下载/WRT-UI/`）或点「打开产物目录」直接在资源管理器里定位
+构建成功后结果页列出产物，可逐个「下载」（存到 `下载/FirmForge/`）或点「打开产物目录」直接在资源管理器里定位
 `jobs/<id>/output/`，不用再翻数据目录。
 
 ## 从源码构建
 
 需要 Rust、Node 24+（Windows 默认走 GNU 工具链，见下）。常用命令都收在 `Makefile` 里：`make help` 列出全部目标，
 `make check` 跑类型检查 + Rust 格式 + clippy + 测试，`make bundle` 产出 NSIS 安装包；
-源码在中文路径下无法直接编译时用 `make mirror` 镜像到 ASCII 目录（`D:/wrtui-build`）再构建。
+源码在中文路径下无法直接编译时用 `make mirror` 镜像到 ASCII 目录（`D:/firmforge-build`）再构建。
 
 ```bash
 npm ci
@@ -106,9 +106,9 @@ rustup target add x86_64-pc-windows-gnu
 export PATH="/c/msys64/mingw64/bin:$PATH"
 ```
 
-**中文路径注意**：mingw 的 `ld` 与 `windres` 无法处理含中文的路径（本项目源码在 `D:\项目文件\WRT-UI`），
+**中文路径注意**：mingw 的 `ld` 与 `windres` 无法处理含中文的路径（本项目源码在 `D:\项目文件\FirmForge`），
 而 cargo 会把 junction 解析回真实路径，所以仅改 `target-dir` 不够，`src-tauri` 本身必须在 ASCII 真实目录。
-仓库用 `scripts/build-windows.sh` 处理：镜像到 `D:\wrtui-build`（ASCII）后编译，源码真源不变。
+仓库用 `scripts/build-windows.sh` 处理：镜像到 `D:\firmforge-build`（ASCII）后编译，源码真源不变。
 
 ```bash
 bash scripts/build-windows.sh          # 同步 + 前端 + cargo build + NSIS 打包
@@ -120,23 +120,23 @@ bash scripts/build-windows.sh          # 同步 + 前端 + cargo build + NSIS �
 手工等价步骤：
 
 ```bash
-robocopy "D:\项目文件\WRT-UI" D:\wrtui-build /MIR /XD node_modules target dist .git
-cmd /c mklink /J D:\wrtui-build\node_modules "D:\项目文件\WRT-UI\node_modules"
-cd /d/wrtui-build && npm run build && cd src-tauri && cargo build --release
+robocopy "D:\项目文件\FirmForge" D:\firmforge-build /MIR /XD node_modules target dist .git
+cmd /c mklink /J D:\firmforge-build\node_modules "D:\项目文件\FirmForge\node_modules"
+cd /d/firmforge-build && npm run build && cd src-tauri && cargo build --release
 ```
 
 `.cargo/config.toml` 已把 crates 源指向 rsproxy（只作用于本仓库）。
 
 ## 检查
 
-业务核心（`wrt-ui-core`）不依赖 Tauri/WebView2，单测在这里运行：
+业务核心（`firmforge-core`）不依赖 Tauri/WebView2，单测在这里运行：
 
 ```bash
 npm run typecheck && npm test
 cd src-tauri
 cargo fmt --all -- --check
 cargo clippy --all-targets -- -D warnings
-cargo test -p wrt-ui-core
+cargo test -p firmforge-core
 ```
 
 桌面外壳（`src-tauri`）的 `#[cfg(test)]` 只有一条纯逻辑断言，运行它需要 WebView2 运行时；
@@ -144,7 +144,7 @@ cargo test -p wrt-ui-core
 
 ## 图标
 
-唯一视觉源是 `assets/wrt-ui-logo.png`；`python scripts/gen_icons.py` 生成 `src-tauri/icons` 下的 png 与 ico，不重新绘制。
+唯一视觉源是 `assets/firmforge-logo.png`；`python scripts/gen_icons.py` 生成 `src-tauri/icons` 下的 png 与 ico，不重新绘制。
 
 ## Tauri 版本
 

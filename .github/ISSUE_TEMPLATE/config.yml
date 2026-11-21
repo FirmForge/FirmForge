@@ -1,11 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: 使用文档
-    url: https://github.com/MinimaxFlora/WRT-UI#readme
+    url: https://github.com/FirmForge/FirmForge#readme
     about: 安装、构建引擎、主题、更新检测的说明都在 README 里。
   - name: 讨论区
-    url: https://github.com/MinimaxFlora/WRT-UI/discussions
+    url: https://github.com/FirmForge/FirmForge/discussions
     about: 想法、经验分享与不确定是不是 bug 的问题，请发到 Discussions。
   - name: 安全漏洞
-    url: https://github.com/MinimaxFlora/WRT-UI/security/advisories/new
+    url: https://github.com/FirmForge/FirmForge/security/advisories/new
     about: 安全问题请不要开公开 issue，走私密报告。

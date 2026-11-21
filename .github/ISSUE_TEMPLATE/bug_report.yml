@@ -6,8 +6,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        感谢反馈。提交前请先搜索 [已有 issue](https://github.com/MinimaxFlora/WRT-UI/issues?q=is%3Aissue)，避免重复。
-        崩溃类问题请附上日志：数据目录下的 `jobs/<id>/build.log`，或用 `wrt-ui.exe` 启动时的控制台输出。
+        感谢反馈。提交前请先搜索 [已有 issue](https://github.com/FirmForge/FirmForge/issues?q=is%3Aissue)，避免重复。
+        崩溃类问题请附上日志：数据目录下的 `jobs/<id>/build.log`，或用 `firmforge.exe` 启动时的控制台输出。
 
   - type: checkboxes
     id: preflight
@@ -58,7 +58,7 @@ body:
   - type: input
     id: app-version
     attributes:
-      label: WRT-UI 版本
+      label: FirmForge 版本
       description: 设置页「07 更新」里的当前版本，或安装包文件名
       placeholder: "1.0.0"
     validations:

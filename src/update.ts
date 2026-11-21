@@ -7,7 +7,7 @@ export { formatNotes, isNewer } from "./version";
 import { isNewer } from "./version";
 import type { UpdateInfo } from "./types";
 
-const CACHE_KEY = "wrt-ui.update";
+const CACHE_KEY = "firmforge.update";
 /** 与 clash-verge-rev 一致：1 小时内不重复请求，跨天再查一次。 */
 const STALE_MS = 60 * 60 * 1000;
 const REFETCH_MS = 24 * 60 * 60 * 1000;
@@ -65,7 +65,7 @@ export function useUpdateCheck(auto = true): UpdateState {
   const running = useRef(false);
 
   const releaseUrl = (version: string) =>
-    `https://github.com/MinimaxFlora/WRT-UI/releases/tag/v${String(version).replace(/^v/i, "")}`;
+    `https://github.com/FirmForge/FirmForge/releases/tag/v${String(version).replace(/^v/i, "")}`;
 
   const checkNow = useCallback(async () => {
     if (!isDesktop() || running.current) return;

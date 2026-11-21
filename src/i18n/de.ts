@@ -138,7 +138,7 @@ export const de: Messages = {
   "result.running": "Build läuft · {stage}",
   "result.preparing": "Vorbereitung",
   "result.artifacts": "Artefakte",
-  "result.artifactsHint": "Wird im Ordner WRT-UI unter Downloads gespeichert",
+  "result.artifactsHint": "Wird im Ordner FirmForge unter Downloads gespeichert",
   "result.download": "Speichern",
   "result.noArtifactsTitle": "Keine herunterladbaren Artefakte",
   "result.noArtifactsHint": "Der Build war erfolgreich, aber der Ausgabeordner ist leer; siehe Log.",
@@ -202,7 +202,7 @@ export const de: Messages = {
   "notice.tip": "Hinweis",
   "error.label": "Fehler",
   "error.needDesktopTitle": "Desktop-Laufzeit nötig",
-  "error.needDesktopBody": "Eine Browser-Vorschau hat kein Backend. Bitte die WRT-UI-Desktop-App starten.",
+  "error.needDesktopBody": "Eine Browser-Vorschau hat kein Backend. Bitte die FirmForge-Desktop-App starten.",
   "error.needDesktopFoot": "Installierte Builds laden lokale Ressourcen und brauchen weder Browser noch Dev-Server. Falls dies eine Installation ist: Rechte am Datenordner prüfen und neu starten.",
   "error.engine": "{name} nicht verfügbar: {message}",
 

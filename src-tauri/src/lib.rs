@@ -112,8 +112,8 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &data, &quit])?;
 
-    let mut builder = TrayIconBuilder::with_id("wrt-ui-tray")
-        .tooltip("WRT-UI 固件构建器")
+    let mut builder = TrayIconBuilder::with_id("firmforge-tray")
+        .tooltip("FirmForge 固件构建器")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
@@ -144,8 +144,8 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
 }
 
 pub fn run() {
-    let dir = wrt_ui_core::store::data_dir();
-    let store = match wrt_ui_core::store::Store::new(dir) {
+    let dir = firmforge_core::store::data_dir();
+    let store = match firmforge_core::store::Store::new(dir) {
         Ok(s) => s,
         Err(e) => {
             eprintln!("无法初始化数据目录: {e}");

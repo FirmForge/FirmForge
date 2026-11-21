@@ -319,7 +319,7 @@ mod tests {
             target: "mediatek/filogic".into(),
             profile: "glinet_ax3000".into(),
             mirror: "https://mirror.nju.edu.cn/immortalwrt".into(),
-            hostname: "WRT-UI".into(),
+            hostname: "FirmForge".into(),
             address: "192.168.2.1/24".into(),
             timezone: "Asia/Shanghai".into(),
             ..Build::default()
@@ -364,7 +364,7 @@ mod tests {
         let mut b = build();
         b.root_password = "s3cret-pw".into();
         let script = quick_script(&b, &b.version).unwrap();
-        assert!(script.contains("uci set system.@system[0].hostname='WRT-UI'"));
+        assert!(script.contains("uci set system.@system[0].hostname='FirmForge'"));
         assert!(script.contains("uci set network.lan.ipaddr='192.168.2.1'"));
         assert!(script.contains("uci set network.lan.netmask='255.255.255.0'"));
         assert!(script.contains("uci set system.@system[0].timezone='CST-8'"));

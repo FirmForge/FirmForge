@@ -8,7 +8,7 @@ export type { ThemeMode };
 /** 用户偏好：跟随系统时由系统明暗决定实际 mode。 */
 export type ThemePref = ThemeMode | "system";
 
-const STORAGE_KEY = "wrt-ui.theme";
+const STORAGE_KEY = "firmforge.theme";
 
 function systemMode(): ThemeMode {
   try {

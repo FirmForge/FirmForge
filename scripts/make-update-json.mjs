@@ -5,7 +5,7 @@
  *   - update-proxy.json  同一个清单，下载地址换成加速镜像，供国内网络使用
  *
  * 用法：node scripts/make-update-json.mjs <version> <owner/repo> [notesPath]
- * 例：  node scripts/make-update-json.mjs 1.0.1 MinimaxFlora/WRT-UI RELEASE_NOTES.md
+ * 例：  node scripts/make-update-json.mjs 1.0.1 FirmForge/FirmForge RELEASE_NOTES.md
  */
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";

@@ -138,7 +138,7 @@ export const zhHant: Messages = {
   "result.running": "建置進行中 · {stage}",
   "result.preparing": "準備",
   "result.artifacts": "產物",
-  "result.artifactsHint": "儲存到系統下載資料夾的 WRT-UI 資料夾",
+  "result.artifactsHint": "儲存到系統下載資料夾的 FirmForge 資料夾",
   "result.download": "儲存",
   "result.noArtifactsTitle": "沒有可下載的產物",
   "result.noArtifactsHint": "建置成功但產物資料夾為空，請查看日誌。",
@@ -202,7 +202,7 @@ export const zhHant: Messages = {
   "notice.tip": "提示",
   "error.label": "錯誤",
   "error.needDesktopTitle": "需要桌面執行環境",
-  "error.needDesktopBody": "瀏覽器預覽沒有後端能力，請在 WRT-UI 桌面應用程式中執行。",
+  "error.needDesktopBody": "瀏覽器預覽沒有後端能力，請在 FirmForge 桌面應用程式中執行。",
   "error.needDesktopFoot": "安裝版會以本機資源啟動，不依賴瀏覽器或開發伺服器。若這是安裝版，請檢查資料夾權限並重新啟動應用程式。",
   "error.engine": "{name} 無法使用：{message}",
 

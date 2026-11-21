@@ -28,7 +28,7 @@ body:
   - type: input
     id: app-version
     attributes:
-      label: WRT-UI 版本
+      label: FirmForge 版本
       placeholder: "1.0.0"
     validations:
       required: false

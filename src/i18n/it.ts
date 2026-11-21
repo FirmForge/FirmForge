@@ -138,7 +138,7 @@ export const it: Messages = {
   "result.running": "Compilazione in corso · {stage}",
   "result.preparing": "Preparazione",
   "result.artifacts": "Artefatti",
-  "result.artifactsHint": "Salvati nella cartella WRT-UI dei download",
+  "result.artifactsHint": "Salvati nella cartella FirmForge dei download",
   "result.download": "Salva",
   "result.noArtifactsTitle": "Nessun artefatto scaricabile",
   "result.noArtifactsHint": "La compilazione è riuscita ma la cartella di output è vuota; controlla il log.",
@@ -202,7 +202,7 @@ export const it: Messages = {
   "notice.tip": "Avviso",
   "error.label": "Errore",
   "error.needDesktopTitle": "Serve l'ambiente desktop",
-  "error.needDesktopBody": "L'anteprima nel browser non ha backend. Avvia l'app desktop WRT-UI.",
+  "error.needDesktopBody": "L'anteprima nel browser non ha backend. Avvia l'app desktop FirmForge.",
   "error.needDesktopFoot": "La versione installata carica risorse locali e non richiede browser né server di sviluppo. Se è un'installazione, controlla i permessi della cartella dati e riavvia.",
   "error.engine": "{name} non disponibile: {message}",
 

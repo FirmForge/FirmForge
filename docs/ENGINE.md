@@ -1,6 +1,6 @@
 # 内置 VM 构建引擎（QEMU + Alpine）
 
-WRT-UI 在 Windows 上默认不依赖任何外部 Linux 环境：安装包自带一套极小的 Linux（Alpine 内核 +
+FirmForge 在 Windows 上默认不依赖任何外部 Linux 环境：安装包自带一套极小的 Linux（Alpine 内核 +
 initramfs）和一个 QEMU，构建固件时由应用启动虚拟机，在 VM 里跑官方的 ImageBuilder。
 
 ## 组件
@@ -15,7 +15,7 @@ initramfs）和一个 QEMU，构建固件时由应用启动虚拟机，在 VM �
 
 ## 一次构建的数据流
 
-1. Rust 在 `%LOCALAPPDATA%\WRT-UI\jobs\<id>\vm-<id>\` 下生成 `run.sh`（构建脚本）和 `files/`（FILES 层）。
+1. Rust 在 `%LOCALAPPDATA%\FirmForge\jobs\<id>\vm-<id>\` 下生成 `run.sh`（构建脚本）和 `files/`（FILES 层）。
 2. 启动 QEMU：`-kernel vmlinuz-virt -initrd initramfs.cpio.gz -m 4096 -smp 4 -display none
    -serial stdio -drive file=fat:rw:<该目录>,format=raw,if=virtio -netdev user,id=n0
    -device e1000,netdev=n0 -append "console=ttyS0 panic=-1"`。
@@ -29,7 +29,7 @@ initramfs）和一个 QEMU，构建固件时由应用启动虚拟机，在 VM �
 
 ## 资源定位顺序
 
-`WRT_UI_ENGINE_DIR` / `WRT_UI_QEMU_DIR` → 数据目录 `engine/` → 可执行文件同级 `resources/`
+`FIRMFORGE_ENGINE_DIR` / `FIRMFORGE_QEMU_DIR` → 数据目录 `engine/` → 可执行文件同级 `resources/`
 → `PATH` 里的 qemu（自行安装）。
 
 ## 已知限制

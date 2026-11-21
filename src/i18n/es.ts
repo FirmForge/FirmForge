@@ -138,7 +138,7 @@ export const es: Messages = {
   "result.running": "Compilando · {stage}",
   "result.preparing": "Preparando",
   "result.artifacts": "Artefactos",
-  "result.artifactsHint": "Se guardan en la carpeta WRT-UI de Descargas",
+  "result.artifactsHint": "Se guardan en la carpeta FirmForge de Descargas",
   "result.download": "Guardar",
   "result.noArtifactsTitle": "No hay artefactos descargables",
   "result.noArtifactsHint": "La compilación terminó bien pero la carpeta de salida está vacía; revisa el registro.",
@@ -202,7 +202,7 @@ export const es: Messages = {
   "notice.tip": "Aviso",
   "error.label": "Error",
   "error.needDesktopTitle": "Se requiere el entorno de escritorio",
-  "error.needDesktopBody": "La vista previa en navegador no tiene backend. Ejecuta la aplicación de escritorio WRT-UI.",
+  "error.needDesktopBody": "La vista previa en navegador no tiene backend. Ejecuta la aplicación de escritorio FirmForge.",
   "error.needDesktopFoot": "La versión instalada carga recursos locales y no necesita navegador ni servidor de desarrollo. Si es una instalación, revisa los permisos del directorio de datos y reinicia.",
   "error.engine": "{name} no disponible: {message}",
 

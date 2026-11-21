@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    wrt_ui_lib::run();
+    firmforge_lib::run();
 }

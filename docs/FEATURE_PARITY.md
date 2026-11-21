@@ -1,9 +1,9 @@
 # FEATURE_PARITY
 
-对照基准是 `sky22333/wrtkit` 的**实际行为**（源码审阅结论），不是不存在的"原 WRT-UI"。
+对照基准是 `sky22333/wrtkit` 的**实际行为**（源码审阅结论），不是不存在的"原 FirmForge"。
 状态含义：✅ 已实现并通过本地验证 · ⚠️ 已实现但依赖真实设备/网络才能完整验证 · ⛔ 有意不实现（桌面形态不需要）
 
-> 实现位置中的 `upstream::` / `scripts::` / `store::` / `net::` / `util::` 都属于 `wrt-ui-core`
+> 实现位置中的 `upstream::` / `scripts::` / `store::` / `net::` / `util::` 都属于 `firmforge-core`
 > （`src-tauri/core`，不依赖 Tauri）；`commands::` / `state::` / `runtime::` 属于桌面外壳。
 
 ## 一、设备与软件包目录
@@ -45,7 +45,7 @@
 | 23 | 取消 | 中止任务、标记 cancelled、清容器 | `commands::cancel_job` | ✅ | 前端按钮 + abort 句柄 |
 | 24 | 日志流 | 文件落盘 + 150ms 合批 emit `job-log`；单次读取上限 256 KiB | `commands::run_job_inner` + `store::read_log` | ✅ | 单元测试（增量读取） |
 | 25 | 产物校验 | 后缀白名单；无固件判失败 | `store::is_firmware` + `run_job_inner` | ✅ | 单元测试 |
-| 26 | 产物保存 | 复制到系统下载目录 `WRT-UI/`，同名加序号，只接受 basename + 固件后缀 | `commands::save_artifact` | ✅ | 代码路径 |
+| 26 | 产物保存 | 复制到系统下载目录 `FirmForge/`，同名加序号，只接受 basename + 固件后缀 | `commands::save_artifact` | ✅ | 代码路径 |
 | 27 | 清理 | 删除产物 + 容器 + 镜像，保留记录，状态置 cleaned | `commands::cleanup_job` | ✅ | 代码路径 + 前端二次确认 |
 
 ## 四、有意不实现（桌面形态替代方案）
@@ -75,12 +75,12 @@
 
 ## 五、回归测试清单（交付时逐项执行）
 
-- [x] `cargo test -p wrt-ui-core`：21 个单元测试全部通过（版本过滤、tag 规则、feeds 解析、代理分类、digest、hostname/时区、CIDR 与 25.12 分界、脚本生成、文件层、存储往返、损坏文件兜底、构建校验、任务 ID/时间格式）
+- [x] `cargo test -p firmforge-core`：21 个单元测试全部通过（版本过滤、tag 规则、feeds 解析、代理分类、digest、hostname/时区、CIDR 与 25.12 分界、脚本生成、文件层、存储往返、损坏文件兜底、构建校验、任务 ID/时间格式）
 - [x] `cargo clippy --all-targets --all-features -- -D warnings`：0 警告
 - [x] `cargo fmt --all -- --check`：通过
 - [x] `npm run typecheck`：TS strict + `noUncheckedIndexedAccess` 通过
 - [x] `npm test`：11 个 vitest 用例通过（默认包合并、翻译匹配、推荐包、无线识别、格式化、状态映射）
 - [x] `npm run build`：Vite 生产构建通过（dist 内嵌进 exe）
-- [x] 桌面启动实测：`WRT-UI_1.0.0_x64-setup.exe` 同源的 release 程序启动后窗口加载本地资源，数据目录自动生成 `settings.json`（默认 ImmortalWrt + 南京大学源）与 `jobs.json`；版本下拉真实读到 `25.12.6`
+- [x] 桌面启动实测：`FirmForge_1.0.0_x64-setup.exe` 同源的 release 程序启动后窗口加载本地资源，数据目录自动生成 `settings.json`（默认 ImmortalWrt + 南京大学源）与 `jobs.json`；版本下拉真实读到 `25.12.6`
 - [ ] 真实 wslc 构建一次固件（需目标设备与网络；界面已显示 WSL Containers 可用）
 - [ ] NSIS 安装 / 卸载 / 升级保数据（安装包已产出，待在你机器上执行安装验证）

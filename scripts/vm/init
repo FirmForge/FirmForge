@@ -1,5 +1,5 @@
 #!/bin/sh
-# WRT-UI 自带 Linux 环境的 init（运行在 QEMU 的 initramfs 里）。
+# FirmForge 自带 Linux 环境的 init（运行在 QEMU 的 initramfs 里）。
 # 职责：挂载伪文件系统 → 加载块/网络/文件系统驱动 → 挂载共享目录 → 配置 slirp 网络
 #       → 执行宿主机下发的 run.sh → 回写退出码 → 关机。
 #
@@ -8,7 +8,7 @@
 #   B) 任意内核 + /wrtmods/kernel 下预置的 .ko（insmod 逐个加载）
 set -u
 
-log() { echo "[wrt-ui] $*"; }
+log() { echo "[firmforge] $*"; }
 
 log "init start"
 mount -t proc proc /proc && log "proc ok" || log "proc FAIL"

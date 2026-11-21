@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
 use tokio::process::Command;
-use wrt_ui_core::error::{AppError, AppResult};
+use firmforge_core::error::{AppError, AppResult};
 
 /// 一次构建运行时需要的全部信息。用户输入只通过环境变量与文件传递。
 #[derive(Debug, Clone)]
@@ -10,7 +10,7 @@ pub struct Spec {
     pub job_id: String,
     pub version: String,
     pub target: String,
-    pub ecosystem: wrt_ui_core::models::Ecosystem,
+    pub ecosystem: firmforge_core::models::Ecosystem,
     pub profile: String,
     pub packages: String,
     pub mirror: String,
@@ -33,7 +33,7 @@ pub type LogFn = Arc<dyn Fn(&str) + Send + Sync>;
 /// 不需要 Docker、WSL 或用户自己安装任何 Linux 环境。
 pub mod qemu {
     use super::*;
-    use wrt_ui_core::models::Ecosystem;
+    use firmforge_core::models::Ecosystem;
 
     const KERNEL: &str = "vmlinuz-virt";
     const INITRAMFS: &str = "initramfs.cpio.gz";
@@ -50,17 +50,17 @@ pub mod qemu {
     /// 候选目录：环境变量覆盖 > 数据目录下的 engine > 可执行文件同级 resources。
     fn candidate_dirs() -> Vec<PathBuf> {
         let mut dirs = Vec::new();
-        for var in ["WRT_UI_ENGINE_DIR", "WRT_UI_QEMU_DIR"] {
+        for var in ["FIRMFORGE_ENGINE_DIR", "FIRMFORGE_QEMU_DIR"] {
             if let Ok(value) = std::env::var(var) {
                 if !value.trim().is_empty() {
                     dirs.push(PathBuf::from(value));
                 }
             }
         }
-        if let Ok(root) = std::env::var("WRT_UI_DATA_DIR") {
+        if let Ok(root) = std::env::var("FIRMFORGE_DATA_DIR") {
             dirs.push(PathBuf::from(root).join("engine"));
         } else if let Some(base) = dirs::data_dir() {
-            dirs.push(base.join("WRT-UI").join("engine"));
+            dirs.push(base.join("FirmForge").join("engine"));
         }
         if let Ok(exe) = std::env::current_exe() {
             if let Some(dir) = exe.parent() {
@@ -163,7 +163,7 @@ pub mod qemu {
 
     /// 数据目录里的引擎目录（下载的 initramfs 与内核放这里）。
     pub fn engine_vm_dir() -> PathBuf {
-        wrt_ui_core::store::data_dir().join("engine").join("vm")
+        firmforge_core::store::data_dir().join("engine").join("vm")
     }
 
     /// 确保 glibc 版 initramfs 就位：没有就下载，并把随包的内核一起放过去。
@@ -179,11 +179,11 @@ pub mod qemu {
         std::fs::create_dir_all(&dir)?;
 
         let urls = [
-            "https://github.com/MinimaxFlora/WRT-UI/releases/download/vm/initramfs.cpio.gz",
-            "https://ghproxy.net/https://github.com/MinimaxFlora/WRT-UI/releases/download/vm/initramfs.cpio.gz",
+            "https://github.com/FirmForge/FirmForge/releases/download/vm/initramfs.cpio.gz",
+            "https://ghproxy.net/https://github.com/FirmForge/FirmForge/releases/download/vm/initramfs.cpio.gz",
         ];
         let client = reqwest::Client::builder()
-            .user_agent("WRT-UI")
+            .user_agent("FirmForge")
             .timeout(std::time::Duration::from_secs(1800))
             .build()
             .map_err(|e| AppError::Engine(e.to_string()))?;
@@ -264,9 +264,11 @@ log() {{ echo "[build] $*"; }}
 
 log "准备构建环境"
 mkdir -p /host/output || exit 11
-for t in wget tar zstd make bzip2 gzip unzip file python3 perl sed gawk grep patch findutils; do
-  command -v "$t" >/dev/null 2>&1 || {{ log "缺少构建工具 $t，请更新虚拟机镜像"; exit 10; }}
+missing=""
+for t in wget tar zstd make gzip unzip file python3 sed grep patch findutils; do
+  command -v "$t" >/dev/null 2>&1 || missing="$missing $t"
 done
+[ -n "$missing" ] && {{ log "虚拟机镜像缺少工具:$missing（请更新镜像）"; exit 10; }}
 
 log "临时空间: $(df -h /tmp | tail -1)"
 log "下载 ImageBuilder"
@@ -320,7 +322,7 @@ exit $rc
             .ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：缺少 initramfs".into()))?;
         let bios = bios_dir(&qemu, &vm);
         // 按宿主可用内存决定虚拟机大小，并写进日志，出问题能一眼看出来。
-        let memory_mb = wrt_ui_core::winsys::vm_memory_mb();
+        let memory_mb = firmforge_core::winsys::vm_memory_mb();
         log(&format!("[vm] 内存 {memory_mb} MiB"));
 
         // 共享目录：父目录下的 vm-<job>，QEMU 用 vvfat 直接映射，产物写 output/。
@@ -481,7 +483,7 @@ exit $rc
     pub async fn remove_container(job_id: &str) -> AppResult<()> {
         // 只在数据目录里收拾该任务的 VM 工作目录。
         if let Some(base) = dirs::data_dir() {
-            let dir = base.join("WRT-UI").join("jobs").join(job_id);
+            let dir = base.join("FirmForge").join("jobs").join(job_id);
             let _ = std::fs::remove_dir_all(dir.join(format!("vm-{job_id}")));
         }
         Ok(())
@@ -532,7 +534,7 @@ mod tests {
             job_id: "t".into(),
             version: "24.10.5".into(),
             target: "mediatek/filogic".into(),
-            ecosystem: wrt_ui_core::models::Ecosystem::ImmortalWrt,
+            ecosystem: firmforge_core::models::Ecosystem::ImmortalWrt,
             profile: "glinet_ax3000".into(),
             packages: "luci-ssl -dropbear".into(),
             mirror: "https://mirror.nju.edu.cn/immortalwrt".into(),

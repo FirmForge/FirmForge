@@ -552,7 +552,7 @@ export function ConfigStep(props: {
               <TextField
                 value={props.draft.hostname}
                 onChange={(e) => props.patch({ hostname: e.target.value })}
-                placeholder="WRT-UI"
+                placeholder="FirmForge"
                 fullWidth
                 slotProps={{ htmlInput: { "aria-label": t("config.hostname") } }}
               />

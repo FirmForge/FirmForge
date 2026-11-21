@@ -138,7 +138,7 @@ export const ru: Messages = {
   "result.running": "Сборка идёт · {stage}",
   "result.preparing": "Подготовка",
   "result.artifacts": "Артефакты",
-  "result.artifactsHint": "Сохраняются в папку WRT-UI в «Загрузках»",
+  "result.artifactsHint": "Сохраняются в папку FirmForge в «Загрузках»",
   "result.download": "Сохранить",
   "result.noArtifactsTitle": "Нет артефактов для скачивания",
   "result.noArtifactsHint": "Сборка прошла успешно, но папка вывода пуста; смотрите журнал.",
@@ -202,7 +202,7 @@ export const ru: Messages = {
   "notice.tip": "Примечание",
   "error.label": "Ошибка",
   "error.needDesktopTitle": "Нужна настольная среда",
-  "error.needDesktopBody": "В браузере нет бэкенда. Запустите настольное приложение WRT-UI.",
+  "error.needDesktopBody": "В браузере нет бэкенда. Запустите настольное приложение FirmForge.",
   "error.needDesktopFoot": "Установленная версия загружает локальные ресурсы и не требует браузера или dev-сервера. Если это установленная версия, проверьте права на папку данных и перезапустите.",
   "error.engine": "{name} недоступен: {message}",
 

@@ -1,16 +1,16 @@
-# WRT-UI 使用手册
+# FirmForge 使用手册
 
-WRT-UI 是一个 Windows 桌面应用，用 OpenWrt / ImmortalWrt 官方 ImageBuilder 生成固件：选设备、挑软件包、写首次启动配置，点一下就开始构建，产物直接可下载或在资源管理器里定位。
+FirmForge 是一个 Windows 桌面应用，用 OpenWrt / ImmortalWrt 官方 ImageBuilder 生成固件：选设备、挑软件包、写首次启动配置，点一下就开始构建，产物直接可下载或在资源管理器里定位。
 
-- 仓库：<https://github.com/MinimaxFlora/WRT-UI>
+- 仓库：<https://github.com/FirmForge/FirmForge>
 - 交流：<https://t.me/MomoFlora>
 
 ---
 
 ## 1. 安装与更新
 
-1. 从 [Releases](https://github.com/MinimaxFlora/WRT-UI/releases) 下载 `WRT-UI_<版本>_x64-setup.exe`。
-2. 双击安装，默认装到 `D:\WRT-UI\`（可在安装向导里改）。
+1. 从 [Releases](https://github.com/FirmForge/FirmForge/releases) 下载 `FirmForge_<版本>_x64-setup.exe`。
+2. 双击安装，默认装到 `D:\FirmForge\`（可在安装向导里改）。
 3. 首次启动会自动检测内置 VM 引擎是否可用，右上角显示状态。
 
 **自动更新**：应用启动后静默检查一次（1 小时缓存、24 小时重查），发现新版本时页头出现粉色徽标。
@@ -57,7 +57,7 @@ WRT-UI 是一个 Windows 桌面应用，用 OpenWrt / ImmortalWrt 官方 ImageBu
 
 构建成功后结果页会列出全部产物（`*-sysupgrade.bin`、`*-factory.img`、`*.itb` 等）：
 
-- **下载**：存到 `下载/WRT-UI/`，同名文件会被覆盖。
+- **下载**：存到 `下载/FirmForge/`，同名文件会被覆盖。
 - **打开产物目录**：直接在资源管理器打开 `jobs\<任务ID>\output\`，适合一次拿多个文件。
 
 「构建历史」里能看到全部任务、日志大小与产物数量，也能从这里下载或清理。
@@ -82,7 +82,7 @@ WRT-UI 是一个 Windows 桌面应用，用 OpenWrt / ImmortalWrt 官方 ImageBu
 
 ### 数据目录
 
-默认 `%LOCALAPPDATA%\WRT-UI\`，存放：
+默认 `%LOCALAPPDATA%\FirmForge\`，存放：
 
 ```
 settings.json     配置
@@ -123,7 +123,7 @@ A：首次构建要下载 ImageBuilder（几十 MB）与全部索引；同一版
 开启代理（设置 → 构建来源 → 查询代理）能明显加快 GitHub 与镜像的访问。
 
 **Q：产物在哪？**
-A：结果页「打开产物目录」，或「构建历史」里对应任务。默认在 `%LOCALAPPDATA%\WRT-UI\jobs\<id>\output\`。
+A：结果页「打开产物目录」，或「构建历史」里对应任务。默认在 `%LOCALAPPDATA%\FirmForge\jobs\<id>\output\`。
 
 **Q：升级会清掉我的配置和历史吗？**
 A：不会。安装包只替换程序文件，数据目录独立存放。

@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "WRT-UI",
+  "productName": "FirmForge",
   "version": "1.3.1",
-  "identifier": "vip.tatalvpai.wrtui",
+  "identifier": "vip.tatalvpai.firmforge",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://127.0.0.1:5273",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "WRT-UI",
+        "title": "FirmForge",
         "width": 1180,
         "height": 820,
         "minWidth": 960,
@@ -35,7 +35,7 @@
     ],
     "publisher": "tatalvpai",
     "shortDescription": "OpenWrt / ImmortalWrt 固件可视化构建工具",
-    "longDescription": "WRT-UI 在桌面端选择设备与软件包、配置系统选项，通过 ImageBuilder 容器生成固件，并管理构建历史与产物。",
+    "longDescription": "FirmForge 在桌面端选择设备与软件包、配置系统选项，通过 ImageBuilder 容器生成固件，并管理构建历史与产物。",
     "category": "DeveloperTool",
     "resources": [
       "resources/vm/*",
@@ -64,8 +64,8 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYyNTZCOURFMUIxMEI2RUUKUldUdXRoQWIzcmxXWXVRTnBPM0VEUHN2ZTA2dDY3RVR1YllxbFZXTmM1ZXdsQVRZNVBjMkM3VlEK",
       "endpoints": [
-        "https://github.com/MinimaxFlora/WRT-UI/releases/download/updater/update.json",
-        "https://ghproxy.net/https://github.com/MinimaxFlora/WRT-UI/releases/download/updater/update-proxy.json"
+        "https://github.com/FirmForge/FirmForge/releases/download/updater/update.json",
+        "https://ghproxy.net/https://github.com/FirmForge/FirmForge/releases/download/updater/update-proxy.json"
       ]
     }
   }

@@ -91,7 +91,7 @@ jobs:
         run: |
           set -e
           out=src-tauri/target/release
-          (cd "$out" && sha256sum wrt-ui.exe > wrt-ui.exe.sha256)
+          (cd "$out" && sha256sum firmforge.exe > firmforge.exe.sha256)
           (cd "$out/bundle/nsis" && sha256sum *.exe > SHA256SUMS.txt)
           ls -l "$out/bundle/nsis"
 
@@ -106,13 +106,13 @@ jobs:
             echo
             echo "- 下载 **NSIS 安装包**（\`*-setup.exe\`）安装即可，无需额外依赖。"
             echo "- 安装包未做代码签名，首次运行系统会提示“未知发布者”，请核对 SHA256 后再放行。"
-            echo "- 用户数据保存在 `%LOCALAPPDATA%/WRT-UI`（设置页“05 数据目录”可直接打开），覆盖安装不会清空；卸载默认保留。"
+            echo "- 用户数据保存在 `%LOCALAPPDATA%/FirmForge`（设置页“05 数据目录”可直接打开），覆盖安装不会清空；卸载默认保留。"
             echo
             echo "## 校验"
             echo
             echo '```'
             cat src-tauri/target/release/bundle/nsis/SHA256SUMS.txt
-            cat src-tauri/target/release/wrt-ui.exe.sha256
+            cat src-tauri/target/release/firmforge.exe.sha256
             echo '```'
             echo
             echo "## 提交记录"
@@ -133,10 +133,10 @@ jobs:
       - name: 上传产物
         uses: actions/upload-artifact@v7.0.2
         with:
-          name: wrt-ui-windows-x64
+          name: firmforge-windows-x64
           path: |
-            src-tauri/target/release/wrt-ui.exe
-            src-tauri/target/release/wrt-ui.exe.sha256
+            src-tauri/target/release/firmforge.exe
+            src-tauri/target/release/firmforge.exe.sha256
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/nsis/SHA256SUMS.txt
             src-tauri/target/release/bundle/nsis/*.exe.sig
@@ -149,7 +149,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v3.0.4
         with:
-          name: WRT-UI ${{ github.ref_name }}
+          name: FirmForge ${{ github.ref_name }}
           body_path: RELEASE_NOTES.md
           # 带 -alpha/-beta/-rc 的标签自动标记为预发布
           prerelease: ${{ contains(github.ref_name, '-') }}

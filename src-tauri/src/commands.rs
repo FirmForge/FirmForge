@@ -6,15 +6,15 @@ use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tokio::sync::mpsc;
-use wrt_ui_core::error::{AppError, AppResult};
-use wrt_ui_core::models::{
+use firmforge_core::error::{AppError, AppResult};
+use firmforge_core::models::{
     Artifact, Build, CleanupInfo, Device, Environment, Job, JobEvent, JobStatus, LogEvent,
     PackagesResult, ProfileInfo, Settings, Versions,
 };
-use wrt_ui_core::net::{parse_proxy, valid_mirror};
-use wrt_ui_core::scripts;
-use wrt_ui_core::store::{is_firmware, validate_build};
-use wrt_ui_core::util::{iso_now, new_job_id};
+use firmforge_core::net::{parse_proxy, valid_mirror};
+use firmforge_core::scripts;
+use firmforge_core::store::{is_firmware, validate_build};
+use firmforge_core::util::{iso_now, new_job_id};
 
 // ---------------------------------------------------------------- 只读目录查询
 
@@ -48,7 +48,7 @@ pub async fn list_versions(
     mirror: String,
 ) -> Result<Versions, AppError> {
     let fetcher = state.fetcher().await;
-    wrt_ui_core::upstream::versions(&fetcher, mirror.trim_end_matches('/')).await
+    firmforge_core::upstream::versions(&fetcher, mirror.trim_end_matches('/')).await
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -58,7 +58,7 @@ pub async fn list_devices(
     version: String,
 ) -> Result<Vec<Device>, AppError> {
     let fetcher = state.fetcher().await;
-    wrt_ui_core::upstream::devices(&fetcher, mirror.trim_end_matches('/'), &version).await
+    firmforge_core::upstream::devices(&fetcher, mirror.trim_end_matches('/'), &version).await
 }
 
 #[tauri::command(rename_all = "snake_case")]
@@ -70,7 +70,7 @@ pub async fn get_profile(
     profile: String,
 ) -> Result<ProfileInfo, AppError> {
     let fetcher = state.fetcher().await;
-    wrt_ui_core::upstream::profile(
+    firmforge_core::upstream::profile(
         &fetcher,
         mirror.trim_end_matches('/'),
         &version,
@@ -89,7 +89,7 @@ pub async fn list_packages(
     profile: String,
 ) -> Result<PackagesResult, AppError> {
     let fetcher = state.fetcher().await;
-    wrt_ui_core::upstream::packages(
+    firmforge_core::upstream::packages(
         &fetcher,
         mirror.trim_end_matches('/'),
         &version,
@@ -133,7 +133,7 @@ pub async fn save_mirrors(
         if !seen.insert(url.clone()) {
             return Err(AppError::Invalid("软件源地址不能重复".into()));
         }
-        normalized.push(wrt_ui_core::models::MirrorSource { name, url });
+        normalized.push(firmforge_core::models::MirrorSource { name, url });
     }
     state
         .update_settings(|s| {
@@ -201,7 +201,7 @@ pub async fn save_prefs(
 #[tauri::command(rename_all = "snake_case")]
 pub async fn switch_ecosystem(
     state: State<'_, AppState>,
-    ecosystem: wrt_ui_core::models::Ecosystem,
+    ecosystem: firmforge_core::models::Ecosystem,
 ) -> Result<Settings, AppError> {
     if state.has_active().await {
         return Err(AppError::Busy);
@@ -210,7 +210,7 @@ pub async fn switch_ecosystem(
         .update_settings(|s| {
             if s.ecosystem != ecosystem {
                 s.ecosystem = ecosystem;
-                s.mirrors = wrt_ui_core::net::default_mirrors(ecosystem);
+                s.mirrors = firmforge_core::net::default_mirrors(ecosystem);
             }
             Ok(())
         })
@@ -378,7 +378,7 @@ pub async fn save_artifact(
     }
     let target_dir = dirs::download_dir()
         .unwrap_or_else(|| store.root().to_path_buf())
-        .join("WRT-UI");
+        .join("FirmForge");
     tokio::fs::create_dir_all(&target_dir)
         .await
         .map_err(|e| AppError::Io(e.to_string()))?;
@@ -480,7 +480,7 @@ pub async fn open_output_dir(
 /// 切换数据目录；前端随后重启应用生效。
 #[tauri::command(rename_all = "snake_case")]
 pub async fn set_data_dir(path: String) -> Result<String, AppError> {
-    let target = wrt_ui_core::store::set_data_dir(&path)?;
+    let target = firmforge_core::store::set_data_dir(&path)?;
     Ok(target.to_string_lossy().to_string())
 }
 
@@ -502,7 +502,7 @@ pub async fn open_data_dir(state: State<'_, AppState>) -> Result<String, AppErro
 
 /// 外部链接白名单：仓库、Wiki、Telegram。只接受 https 且必须是这些前缀。
 const ALLOWED_URLS: &[&str] = &[
-    "https://github.com/MinimaxFlora/WRT-UI",
+    "https://github.com/FirmForge/FirmForge",
     "https://t.me/MomoFlora",
 ];
 
@@ -559,7 +559,7 @@ pub async fn uwp_loopback_list() -> Result<Vec<String>, AppError> {
         .output()
         .map_err(|e| AppError::Io(e.to_string()))?;
     let text = String::from_utf8_lossy(&out.stdout);
-    Ok(wrt_ui_core::winsys::parse_loopback(&text))
+    Ok(firmforge_core::winsys::parse_loopback(&text))
 }
 
 /// 给指定 UWP 包加环回豁免：`CheckNetIsolation LoopbackExempt -a -n=<包名>`。
@@ -623,9 +623,9 @@ fn emit_job(app: &AppHandle, id: &str, jobs: &[Job]) {
 fn notify_build(app: &AppHandle, success: bool, detail: &str) {
     use tauri_plugin_notification::NotificationExt;
     let title = if success {
-        "WRT-UI 构建完成"
+        "FirmForge 构建完成"
     } else {
-        "WRT-UI 构建失败"
+        "FirmForge 构建失败"
     };
     let body = if detail.len() > 200 {
         format!("{}…", &detail[..200])
@@ -798,7 +798,7 @@ mod tests {
     #[test]
     fn settings_command_surface_keeps_ecosystem_consistent() {
         // 生态切换会重置镜像列表，避免 OpenWrt 使用 immortalwrt 源。
-        let mirrors = wrt_ui_core::net::default_mirrors(wrt_ui_core::models::Ecosystem::OpenWrt);
+        let mirrors = firmforge_core::net::default_mirrors(firmforge_core::models::Ecosystem::OpenWrt);
         assert!(mirrors.iter().all(|m| !m.url.contains("immortalwrt")));
     }
 }

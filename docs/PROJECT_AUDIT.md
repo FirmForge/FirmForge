@@ -4,15 +4,15 @@
 
 | 项 | 结论 |
 | --- | --- |
-| 名义目标仓库 | `https://github.com/MinimaxFlora/WRT-UI` |
+| 名义目标仓库 | `https://github.com/FirmForge/FirmForge` |
 | 仓库状态 | **空仓库**：`GET /branches` 返回 `[]`，`GET /commits` 返回 `409 Git Repository is empty`，`size: 0`，创建于 2026-11-17 |
-| 本地原源码 | 无。`D:\项目文件` 下不存在 WRT-UI 目录；`D:\项目文件\wrt` 为空目录 |
+| 本地原源码 | 无。`D:\项目文件` 下不存在 FirmForge 目录；`D:\项目文件\wrt` 为空目录 |
 | 可运行原版 | 不存在，无法截图、无法采集行为基线 |
 | 实际参照基准 | `https://github.com/sky22333/wrtkit`（Go + React 的同类本地固件构建器，源码已逐文件审阅） |
 
-因此本文的记录必须如实标注：**本次交付不是"原 WRT-UI 网页项目迁移"，而是"以 wrtkit 的业务逻辑为参照、在新仓库内建立的 WRT-UI 桌面应用"**。
+因此本文的记录必须如实标注：**本次交付不是"原 FirmForge 网页项目迁移"，而是"以 wrtkit 的业务逻辑为参照、在新仓库内建立的 FirmForge 桌面应用"**。
 前端页面、交互与视觉是在新工程内实现的，不存在"原前端保持不变"的对照物。
-`docs/FEATURE_PARITY.md` 的对照列指向 wrtkit 的行为，而不是虚构的"原 WRT-UI"。
+`docs/FEATURE_PARITY.md` 的对照列指向 wrtkit 的行为，而不是虚构的"原 FirmForge"。
 
 ## 2. 参照项目（wrtkit）技术事实
 
@@ -35,13 +35,13 @@
 | crates 源 | `index.crates.io` 与 `rsproxy.cn` 均可达；本项目在 `.cargo/config.toml` 使用 rsproxy sparse 镜像 |
 | GitHub 直连 | `github.com` / `codeload` / `raw.githubusercontent.com` 直连不稳定（连接重置），审计期通过浏览器抓取 raw 文件 |
 | MSVC | 不存在，因此本项目固定使用 `x86_64-pc-windows-gnu` 目标，并在 `.cargo/config.toml` 指定 `x86_64-w64-mingw32-gcc/ar` |
-| 中文路径 | **实测会失败**：`mingw ld` 找不到 target 内 `.def/.o`（`D:\项目文件\...`），`tauri-winres` 的 `windres` 报 `can't open icon file ...Invalid argument`。cargo 会把 junction 解析回真实中文路径，因此仅改 `target-dir` 不够：由 `scripts/build-windows.sh` 把源码镜像到 ASCII 目录 `D:\wrtui-build` 后编译（node_modules 用 junction 复用），源码真源不动 |
+| 中文路径 | **实测会失败**：`mingw ld` 找不到 target 内 `.def/.o`（`D:\项目文件\...`），`tauri-winres` 的 `windres` 报 `can't open icon file ...Invalid argument`。cargo 会把 junction 解析回真实中文路径，因此仅改 `target-dir` 不够：由 `scripts/build-windows.sh` 把源码镜像到 ASCII 目录 `D:\firmforge-build` 后编译（node_modules 用 junction 复用），源码真源不动 |
 | NSIS 打包器 | GitHub Release 资产可用 curl 下载（网页打不开）。已预置 `%LOCALAPPDATA%\tauri\NSIS`（nsis-3.13 解压 + `Plugins/x86-unicode/additional/nsis_tauri_utils.dll`） |
 
 ## 4. 工程结构（实际）
 
 ```
-WRT-UI/
+FirmForge/
 ├─ src/                     # React 19 + TS + MUI 9 前端（Vite 8）
 │  ├─ App.tsx               # 左侧导航 + 顶部信息栏 + 页面切换
 │  ├─ api.ts                # 唯一 IPC 适配层（invoke / event 封装）
@@ -53,7 +53,7 @@ WRT-UI/
 │  ├─ pages/HistoryPage.tsx
 │  └─ pages/SettingsPage.tsx
 ├─ src-tauri/
-│  ├─ core/                 # wrt-ui-core：纯业务，无 Tauri 依赖，单测在此运行
+│  ├─ core/                 # firmforge-core：纯业务，无 Tauri 依赖，单测在此运行
 │  │  └─ src/{models,error,net,upstream,scripts,store,util}.rs
 │  ├─ src/lib.rs            # Tauri 2 初始化与命令注册
 │  ├─ src/commands.rs       # 全部 IPC 命令 + 构建任务执行

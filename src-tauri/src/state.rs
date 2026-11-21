@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use tokio::sync::{Mutex, RwLock};
 use tokio::task::AbortHandle;
-use wrt_ui_core::error::{AppError, AppResult};
-use wrt_ui_core::models::{Job, JobStatus, Settings};
-use wrt_ui_core::net::Fetcher;
-use wrt_ui_core::store::Store;
+use firmforge_core::error::{AppError, AppResult};
+use firmforge_core::models::{Job, JobStatus, Settings};
+use firmforge_core::net::Fetcher;
+use firmforge_core::store::Store;
 
 /// 桌面应用共享状态：设置、任务清单、活动构建与下载器。
 pub struct AppState {
@@ -18,7 +18,7 @@ pub struct AppState {
 impl AppState {
     pub fn new(store: Store) -> AppResult<Self> {
         let settings = store.load_settings()?;
-        let fetcher = Fetcher::new(wrt_ui_core::net::parse_proxy(&settings.proxy)?)?;
+        let fetcher = Fetcher::new(firmforge_core::net::parse_proxy(&settings.proxy)?)?;
         let jobs = store.load_jobs()?;
         store.save_jobs(&jobs)?;
         Ok(Self {
@@ -47,7 +47,7 @@ impl AppState {
         f(&mut next)?;
         next.data_dir = self.store.display_root();
         self.store.save_settings(&next)?;
-        let proxy = wrt_ui_core::net::parse_proxy(&next.proxy)?;
+        let proxy = firmforge_core::net::parse_proxy(&next.proxy)?;
         let fetcher = Fetcher::new(proxy)?;
         *guard = next.clone();
         *self.fetcher.write().await = fetcher;

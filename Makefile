@@ -1,11 +1,11 @@
-# WRT-UI 常用任务。Windows 上请用 Git Bash / MSYS2 的 make 执行。
+# FirmForge 常用任务。Windows 上请用 Git Bash / MSYS2 的 make 执行。
 # 注意：源码目录不要放在含中文的路径下编译（mingw 的 ld/windres 会失败），
 # 需要时用 `make mirror` 镜像到 ASCII 目录再构建。
 
 SHELL := /bin/bash
 NPM   ?= npm
 CARGO ?= cargo
-MIRROR ?= D:/wrtui-build
+MIRROR ?= D:/firmforge-build
 
 .DEFAULT_GOAL := help
 .PHONY: help install dev build preview test typecheck fmt fmt-check clippy check \

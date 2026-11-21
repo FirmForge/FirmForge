@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 /// 数据目录：默认系统应用数据目录；环境变量用于自动化测试，
 /// 用户在设置里改过的目录记在 `<默认目录>/datadir.txt`，启动时优先读它。
 pub fn data_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("WRT_UI_DATA_DIR") {
+    if let Ok(dir) = std::env::var("FIRMFORGE_DATA_DIR") {
         if !dir.trim().is_empty() {
             return PathBuf::from(dir);
         }
@@ -27,7 +27,7 @@ pub fn default_data_dir() -> PathBuf {
     dirs::data_local_dir()
         .or_else(dirs::data_dir)
         .unwrap_or_else(|| PathBuf::from("."))
-        .join("WRT-UI")
+        .join("FirmForge")
 }
 
 /// 切换数据目录：校验可写、把现有配置与构建记录带过去，再写指针文件。
@@ -44,7 +44,7 @@ pub fn set_data_dir(target: &str) -> AppResult<PathBuf> {
     std::fs::create_dir_all(&path)
         .map_err(|e| AppError::Invalid(format!("无法创建目录: {e}")))?;
     // 试写一个探针文件，避免选到只读目录
-    let probe = path.join(".wrt-ui-write-test");
+    let probe = path.join(".firmforge-write-test");
     std::fs::write(&probe, b"ok").map_err(|e| AppError::Invalid(format!("目录不可写: {e}")))?;
     let _ = std::fs::remove_file(&probe);
 
@@ -280,7 +280,7 @@ mod tests {
     use crate::models::Ecosystem;
 
     fn tmp_store(tag: &str) -> Store {
-        let dir = std::env::temp_dir().join(format!("wrtui-store-{tag}"));
+        let dir = std::env::temp_dir().join(format!("firmforge-store-{tag}"));
         let _ = std::fs::remove_dir_all(&dir);
         Store::new(dir).expect("创建临时数据目录")
     }
@@ -291,7 +291,7 @@ mod tests {
         let s = store.load_settings().unwrap();
         assert_eq!(s.ecosystem, Ecosystem::ImmortalWrt);
         assert!(!s.mirrors.is_empty());
-        assert!(s.data_dir.contains("wrtui-store-settings"));
+        assert!(s.data_dir.contains("firmforge-store-settings"));
         let mut changed = s.clone();
         changed.proxy = "socks5://127.0.0.1:1080".into();
         changed.theme = "dark".into();
@@ -359,7 +359,7 @@ mod tests {
             target: "mediatek/filogic".into(),
             profile: "glinet_ax3000".into(),
             mirror: "https://mirror.nju.edu.cn/immortalwrt".into(),
-            hostname: "WRT-UI".into(),
+            hostname: "FirmForge".into(),
             address: "192.168.2.1/24".into(),
             timezone: "Asia/Shanghai".into(),
             packages: vec!["curl".into()],

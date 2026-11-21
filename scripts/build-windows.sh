@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Windows 构建入口。
 # 背景：mingw 的 ld 与 windres 无法处理含中文的路径，而源码按用户习惯放在
-# D:\项目文件\WRT-UI。因此先镜像到纯 ASCII 目录 D:\wrtui-build 再编译；
-# 源码真源仍是 D:\项目文件\WRT-UI，本脚本不修改它。
+# D:\项目文件\FirmForge。因此先镜像到纯 ASCII 目录 D:\firmforge-build 再编译；
+# 源码真源仍是 D:\项目文件\FirmForge，本脚本不修改它。
 set -euo pipefail
 
-SRC="${WRT_UI_SRC:-D:/项目文件/WRT-UI}"
-BUILD="${WRT_UI_BUILD:-D:/wrtui-build}"
+SRC="${FIRMFORGE_SRC:-D:/项目文件/FirmForge}"
+BUILD="${FIRMFORGE_BUILD:-D:/firmforge-build}"
 export PATH="/c/msys64/mingw64/bin:$PATH"
 export CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc
 export AR_x86_64_pc_windows_gnu=x86_64-w64-mingw32-ar
@@ -40,5 +40,5 @@ echo "== 打包 NSIS 安装器"
 ( cd "$BUILD" && npx tauri build --bundles nsis )
 
 echo "== 产物"
-ls -lh "$BUILD/../wrtui-target/release/wrt-ui.exe" 2>/dev/null || true
-find "$BUILD/../wrtui-target/release/bundle/nsis" -name "*.exe" -maxdepth 1 2>/dev/null || true
+ls -lh "$BUILD/../firmforge-target/release/firmforge.exe" 2>/dev/null || true
+find "$BUILD/../firmforge-target/release/bundle/nsis" -name "*.exe" -maxdepth 1 2>/dev/null || true

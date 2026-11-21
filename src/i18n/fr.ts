@@ -138,7 +138,7 @@ export const fr: Messages = {
   "result.running": "Compilation en cours · {stage}",
   "result.preparing": "Préparation",
   "result.artifacts": "Artefacts",
-  "result.artifactsHint": "Enregistrés dans le dossier WRT-UI des téléchargements",
+  "result.artifactsHint": "Enregistrés dans le dossier FirmForge des téléchargements",
   "result.download": "Enregistrer",
   "result.noArtifactsTitle": "Aucun artefact à télécharger",
   "result.noArtifactsHint": "La compilation a réussi mais le dossier de sortie est vide ; voir le journal.",
@@ -202,7 +202,7 @@ export const fr: Messages = {
   "notice.tip": "Remarque",
   "error.label": "Erreur",
   "error.needDesktopTitle": "Exécution de bureau requise",
-  "error.needDesktopBody": "Un aperçu navigateur n'a pas de backend. Lancez l'application de bureau WRT-UI.",
+  "error.needDesktopBody": "Un aperçu navigateur n'a pas de backend. Lancez l'application de bureau FirmForge.",
   "error.needDesktopFoot": "Une version installée charge ses ressources locales, sans navigateur ni serveur de développement. Si c'est une installation, vérifiez les droits du dossier de données et redémarrez.",
   "error.engine": "{name} indisponible : {message}",
 

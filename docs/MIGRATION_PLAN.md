@@ -6,8 +6,8 @@
 
 ## 阶段 A：源码审计 —— 已完成（以参照项目替代）
 
-- [x] 确认 `MinimaxFlora/WRT-UI` 为空仓库（branches `[]`，commits `409`，size 0）
-- [x] 确认本地无原源码（`D:\项目文件` 无 WRT-UI，`D:\项目文件\wrt` 为空）
+- [x] 确认 `FirmForge/FirmForge` 为空仓库（branches `[]`，commits `409`，size 0）
+- [x] 确认本地无原源码（`D:\项目文件` 无 FirmForge，`D:\项目文件\wrt` 为空）
 - [x] 逐文件审阅参照项目 wrtkit：`server.go`(789行)、`runtime.go`、`packages.go`、`quick.go`、
       `preflight.go`、`mirror_config.go`、`ecosystem.go`、`auth.go`、`cleanup.go`、`ci.yml`、前端 `App/useWorkspace/packageSelection`
 - [x] 记录参照项目的业务规则清单（版本探测、tag 规则、digest 钉住、源替换、uci-defaults 顺序、CIDR 分界）
@@ -19,7 +19,7 @@
 ## 阶段 B：Tauri 2 工程集成 —— 已完成
 
 - [x] `src-tauri/Cargo.toml`（tauri 2 + tokio + reqwest(native-tls) + tar + pwhash + dirs）
-- [x] `tauri.conf.json`：`frontendDist: ../dist`、窗口 1180×820、最小 960×620、`identifier: vip.tatalvpai.wrtui`
+- [x] `tauri.conf.json`：`frontendDist: ../dist`、窗口 1180×820、最小 960×620、`identifier: vip.tatalvpai.firmforge`
 - [x] `capabilities/default.json`：仅 `core:default`
 - [x] 图标：唯一源图 → 32/128/256/512 png + `icon.ico`（多尺寸）
 - [x] 前端在 Vite 中可独立 `npm run build`，产物由 Tauri 本地加载
@@ -44,21 +44,21 @@ opkg/apk 文件探测、25.12 CIDR 分界、默认包减号语义。
 
 ## 阶段 E：Windows 原生体验 —— 已完成（可执行）
 
-- [x] 应用名 `WRT-UI`、窗口标题一致、`productName`/`publisher`/`description` 已填
+- [x] 应用名 `FirmForge`、窗口标题一致、`productName`/`publisher`/`description` 已填
 - [x] 图标与品牌一致（源图未重绘）
-- [x] 用户数据写入 `%LOCALAPPDATA%\WRT-UI`
-- [x] 中文路径数据目录（`D:\项目文件\WRT-UI`）下构建，日志与产物正常
+- [x] 用户数据写入 `%LOCALAPPDATA%\FirmForge`
+- [x] 中文路径数据目录（`D:\项目文件\FirmForge`）下构建，日志与产物正常
 - [x] 单实例/托盘等增强能力**未加**：无明确需求，不做堆砌
 - [ ] 安装/卸载/升级保数据 —— 待在本机执行安装包验证
 
 ## 阶段 F：构建、测试与发布 —— 已完成（安装验证待用户执行）
 
-- [x] `cargo test -p wrt-ui-core`：21 passed
+- [x] `cargo test -p firmforge-core`：21 passed
 - [x] `cargo clippy --all-targets --all-features -- -D warnings`：0 warning
 - [x] `cargo fmt --all -- --check`：通过
 - [x] `npm run typecheck` / `npm test`（11 passed）/ `npm run build`
-- [x] `npx tauri build --bundles nsis` 产出 `wrt-ui.exe`（5.3 MiB）与 `WRT-UI_1.0.0_x64-setup.exe`（1.96 MiB）
-- [x] SHA256 已生成（`wrt-ui.exe.sha256`、`bundle/nsis/SHA256SUMS.txt`）
+- [x] `npx tauri build --bundles nsis` 产出 `firmforge.exe`（5.3 MiB）与 `FirmForge_1.0.0_x64-setup.exe`（1.96 MiB）
+- [x] SHA256 已生成（`firmforge.exe.sha256`、`bundle/nsis/SHA256SUMS.txt`）
 - [x] `.github/workflows/build.yml`（windows-latest，fmt/clippy/test/前端检查/打包/上传 + SHA256）
 - [ ] 干净 Windows 环境安装验证（安装包已就绪，等待在你的机器上执行）
 
@@ -68,4 +68,4 @@ opkg/apk 文件探测、25.12 CIDR 分界、默认包减号语义。
    那需要下载 ImageBuilder 镜像（数百 MB）并编译，属于需要你确认的重操作。
 2. 安装包未做代码签名，Windows 会提示"未知发布者"；未实现自动更新。
 3. `cargo build --release` 产物是开发配置（连 `devUrl`），验收/分发只能使用 `tauri build` 的产物——已写入 README 与 skill。
-4. 原 WRT-UI 仓库为空，前端为新建实现（详见 `PROJECT_AUDIT.md` 的偏差声明）。
+4. 原 FirmForge 仓库为空，前端为新建实现（详见 `PROJECT_AUDIT.md` 的偏差声明）。

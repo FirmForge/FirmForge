@@ -9,7 +9,7 @@ export const initialBuild: Build = {
   packages: [],
   remove: [],
   mirror: "",
-  hostname: "WRT-UI",
+  hostname: "FirmForge",
   address: "192.168.2.1/24",
   timezone: "Asia/Shanghai",
   script: "",

@@ -3,7 +3,7 @@
 # 用法: scripts/smoke.sh <exe 路径>
 set -uo pipefail
 
-EXE="${1:-src-tauri/target/release/wrt-ui.exe}"
+EXE="${1:-src-tauri/target/release/firmforge.exe}"
 if [[ ! -f "$EXE" ]]; then
   echo "FAIL: 找不到可执行文件 $EXE"
   exit 1
@@ -11,8 +11,8 @@ fi
 
 WORK="$(mktemp -d)"
 # Windows 程序不认 MSYS 的 /tmp 路径，必须转成原生路径。
-export WRT_UI_DATA_DIR="$(cygpath -w "$WORK/data")"
-echo "数据目录: $WRT_UI_DATA_DIR"
+export FIRMFORGE_DATA_DIR="$(cygpath -w "$WORK/data")"
+echo "数据目录: $FIRMFORGE_DATA_DIR"
 
 "$EXE" &
 PID=$!
@@ -26,15 +26,15 @@ else
   STATUS=1
 fi
 
-if [[ -f "$WRT_UI_DATA_DIR/settings.json" ]]; then
+if [[ -f "$FIRMFORGE_DATA_DIR/settings.json" ]]; then
   echo "PASS: settings.json 已生成"
-  head -c 400 "$WRT_UI_DATA_DIR/settings.json"; echo
+  head -c 400 "$FIRMFORGE_DATA_DIR/settings.json"; echo
 else
   echo "FAIL: settings.json 未生成"
   STATUS=1
 fi
 
-if [[ -f "$WRT_UI_DATA_DIR/jobs.json" ]]; then
+if [[ -f "$FIRMFORGE_DATA_DIR/jobs.json" ]]; then
   echo "PASS: jobs.json 已生成"
 else
   echo "FAIL: jobs.json 未生成"

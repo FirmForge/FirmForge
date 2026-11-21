@@ -137,7 +137,7 @@ export const zhHans = {
   "result.running": "构建进行中 · {stage}",
   "result.preparing": "准备",
   "result.artifacts": "产物",
-  "result.artifactsHint": "保存到系统下载目录的 WRT-UI 文件夹",
+  "result.artifactsHint": "保存到系统下载目录的 FirmForge 文件夹",
   "result.download": "保存",
   "result.noArtifactsTitle": "没有可下载的产物",
   "result.noArtifactsHint": "构建成功但产物目录为空，请查看日志。",
@@ -201,7 +201,7 @@ export const zhHans = {
   "notice.tip": "提示",
   "error.label": "错误",
   "error.needDesktopTitle": "需要桌面运行时",
-  "error.needDesktopBody": "浏览器预览没有后端能力，请在 WRT-UI 桌面应用中运行。",
+  "error.needDesktopBody": "浏览器预览没有后端能力，请在 FirmForge 桌面应用中运行。",
   "error.needDesktopFoot": "安装版会以本地资源启动，不依赖浏览器或开发服务器。若这是安装版，请检查数据目录权限并重启应用。",
   "error.engine": "{name} 不可用：{message}",
 

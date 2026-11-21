@@ -1,8 +1,8 @@
-# WRT-UI 使用手册
+# FirmForge 使用手册
 
-WRT-UI 是一个 Windows 桌面应用，用 OpenWrt / ImmortalWrt 官方 ImageBuilder 生成固件：选设备、挑软件包、写首次启动配置，点一下就开始构建，产物直接可下载或在资源管理器里定位。
+FirmForge 是一个 Windows 桌面应用，用 OpenWrt / ImmortalWrt 官方 ImageBuilder 生成固件：选设备、挑软件包、写首次启动配置，点一下就开始构建，产物直接可下载或在资源管理器里定位。
 
-- 仓库：<https://github.com/MinimaxFlora/WRT-UI>
+- 仓库：<https://github.com/FirmForge/FirmForge>
 - 交流：<https://t.me/MomoFlora>
 
 ---

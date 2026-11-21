@@ -138,7 +138,7 @@ export const ja: Messages = {
   "result.running": "ビルド中 · {stage}",
   "result.preparing": "準備中",
   "result.artifacts": "成果物",
-  "result.artifactsHint": "ダウンロードフォルダーの WRT-UI に保存します",
+  "result.artifactsHint": "ダウンロードフォルダーの FirmForge に保存します",
   "result.download": "保存",
   "result.noArtifactsTitle": "ダウンロードできる成果物がありません",
   "result.noArtifactsHint": "ビルドは成功しましたが出力先が空です。ログを確認してください。",
@@ -202,7 +202,7 @@ export const ja: Messages = {
   "notice.tip": "お知らせ",
   "error.label": "エラー",
   "error.needDesktopTitle": "デスクトップ実行環境が必要です",
-  "error.needDesktopBody": "ブラウザプレビューにはバックエンドがありません。WRT-UI デスクトップアプリで実行してください。",
+  "error.needDesktopBody": "ブラウザプレビューにはバックエンドがありません。FirmForge デスクトップアプリで実行してください。",
   "error.needDesktopFoot": "インストール版はローカル資産から起動し、ブラウザや開発サーバーを必要としません。インストール版でこの画面が出る場合は、データフォルダーの権限を確認して再起動してください。",
   "error.engine": "{name} は利用できません: {message}",
 

@@ -22,8 +22,8 @@ export const DEFAULT_THEME: CustomTheme = {
   css: "",
 };
 
-const KEY = "wrt-ui.custom-theme";
-const STYLE_ID = "wrt-ui-custom-css";
+const KEY = "firmforge.custom-theme";
+const STYLE_ID = "firmforge-custom-css";
 const FONTS: Record<CustomTheme["font"], string> = {
   mono: "var(--font-mono)",
   sans: "var(--font-sans)",
