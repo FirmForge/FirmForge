@@ -278,7 +278,7 @@ export const en: Messages = {
   "settings.uwpAdded": "Loopback exemption added",
   "settings.uwpCount": "{n} entries",
   "settings.links": "Links",
-  "link.wiki": "Wiki",
+  "link.wiki": "Manual",
   "link.telegram": "Telegram",
   "link.github": "GitHub",
   "theme.title": "Theme settings",

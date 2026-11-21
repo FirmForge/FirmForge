@@ -265,7 +265,7 @@ log() {{ echo "[build] $*"; }}
 log "准备构建环境"
 mkdir -p /host/output || exit 11
 missing=""
-for t in wget tar zstd make gzip unzip file python3 sed grep patch findutils; do
+for t in wget tar zstd make gzip unzip file python3 sed grep patch find; do
   command -v "$t" >/dev/null 2>&1 || missing="$missing $t"
 done
 [ -n "$missing" ] && {{ log "虚拟机镜像缺少工具:$missing（请更新镜像）"; exit 10; }}

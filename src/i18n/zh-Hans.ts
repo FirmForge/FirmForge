@@ -277,7 +277,7 @@ export const zhHans = {
   "settings.uwpAdded": "已添加环回豁免",
   "settings.uwpCount": "{n} 项",
   "settings.links": "链接",
-  "link.wiki": "使用手册（Wiki）",
+  "link.wiki": "使用手册",
   "link.telegram": "Telegram 交流群",
   "link.github": "GitHub 仓库",
   "theme.title": "主题设置",

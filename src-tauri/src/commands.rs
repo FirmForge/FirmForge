@@ -503,6 +503,7 @@ pub async fn open_data_dir(state: State<'_, AppState>) -> Result<String, AppErro
 /// 外部链接白名单：仓库、Wiki、Telegram。只接受 https 且必须是这些前缀。
 const ALLOWED_URLS: &[&str] = &[
     "https://github.com/FirmForge/FirmForge",
+    "https://firmforge.github.io/FirmForge",
     "https://t.me/MomoFlora",
 ];
 
