@@ -451,13 +451,6 @@ pub async fn cleanup_job(state: State<'_, AppState>, id: String) -> Result<u64, 
     Ok(bytes)
 }
 
-/// 确保内置虚拟机的 glibc 镜像就位（首次会下载，约 60 MiB）。
-#[tauri::command(rename_all = "snake_case")]
-pub async fn ensure_vm_image() -> Result<String, AppError> {
-    let path = crate::runtime::qemu::ensure_initramfs().await?;
-    Ok(path.to_string_lossy().to_string())
-}
-
 /// 在资源管理器里打开某个任务的产物目录（构建结束后一键定位固件）。
 #[tauri::command(rename_all = "snake_case")]
 pub async fn open_output_dir(

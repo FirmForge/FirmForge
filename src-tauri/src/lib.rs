@@ -199,7 +199,6 @@ pub fn run() {
             commands::open_data_dir,
             commands::set_data_dir,
             commands::open_output_dir,
-            commands::ensure_vm_image,
             commands::open_url,
             commands::open_devtools,
             commands::uwp_loopback_list,

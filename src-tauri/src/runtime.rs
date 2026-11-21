@@ -138,8 +138,7 @@ pub mod qemu {
         let qemu =
             qemu_dir().ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：找不到 qemu".into()))?;
         vm_dir().ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：缺少内核".into()))?;
-        let initramfs = initramfs_path()
-            .ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：缺少 initramfs".into()))?;
+        let initramfs = require_initramfs()?;
         let size = std::fs::metadata(&initramfs)
             .map(|m| m.len() / 1048576)
             .unwrap_or(0);
@@ -174,70 +173,14 @@ pub mod qemu {
         firmforge_core::store::data_dir().join("engine").join("vm")
     }
 
-    /// 确保 glibc 版 initramfs 就位：没有就下载，并把随包的内核一起放过去。
-    ///
-    /// 包里自带的是 Alpine(musl) 版本，跑不了 ImageBuilder 的 glibc host 工具，
-    /// 所以真正的构建镜像由 CI 产出、挂在 Release 的 `vm` 标签上。
-    pub async fn ensure_initramfs() -> AppResult<PathBuf> {
-        // 安装包已经内置镜像时直接返回，不再下载。
-        if let Some(path) = initramfs_path() {
-            if is_glibc_image(&path) {
-                return Ok(path);
-            }
-        }
-        let dir = engine_vm_dir();
-        let target = dir.join(INITRAMFS);
-        if is_glibc_image(&target) {
-            return Ok(target);
-        }
-        std::fs::create_dir_all(&dir)?;
-
-        let urls = [
-            "https://github.com/FirmForge/FirmForge/releases/download/vm/initramfs.cpio.gz",
-            "https://ghproxy.net/https://github.com/FirmForge/FirmForge/releases/download/vm/initramfs.cpio.gz",
-        ];
-        let client = reqwest::Client::builder()
-            .user_agent("FirmForge")
-            .timeout(std::time::Duration::from_secs(1800))
-            .build()
-            .map_err(|e| AppError::Engine(e.to_string()))?;
-
-        let tmp = dir.join("initramfs.download");
-        let mut last = String::new();
-        for url in urls {
-            match client.get(url).send().await {
-                Ok(resp) if resp.status().is_success() => {
-                    let bytes = resp
-                        .bytes()
-                        .await
-                        .map_err(|e| AppError::Engine(format!("下载虚拟机镜像失败: {e}")))?;
-                    if bytes.len() < 8 * 1024 * 1024 || bytes[0] != 0x1f || bytes[1] != 0x8b {
-                        last = format!("镜像内容无效（{} 字节）", bytes.len());
-                        continue;
-                    }
-                    std::fs::write(&tmp, &bytes)?;
-                    std::fs::rename(&tmp, &target)?;
-                    break;
-                }
-                Ok(resp) => last = format!("HTTP {}", resp.status()),
-                Err(e) => last = e.to_string(),
-            }
-        }
-        if !is_glibc_image(&target) {
-            return Err(AppError::Engine(format!(
-                "无法获取虚拟机镜像（{last}）。请检查网络，或在设置里更换镜像后重试。"
-            )));
-        }
-
-        // 内核跟着放一份，vm_dir() 要求两者同目录。
-        if !dir.join(KERNEL).is_file() {
-            if let Some(src) = vm_dir().map(|d| d.join(KERNEL)) {
-                if src.is_file() {
-                    let _ = std::fs::copy(src, dir.join(KERNEL));
-                }
-            }
-        }
-        Ok(target)
+    /// 内置虚拟机镜像（随安装包分发）：缺失说明安装不完整。
+    pub fn require_initramfs() -> AppResult<PathBuf> {
+        initramfs_path().ok_or_else(|| {
+            AppError::Engine(
+                "安装包缺少内置虚拟机镜像（resources/vm/initramfs.cpio.gz），请重新安装 FirmForge"
+                    .into(),
+            )
+        })
     }
 
     fn is_glibc_image(path: &Path) -> bool {
@@ -339,8 +282,7 @@ exit $rc
             qemu_dir().ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：找不到 qemu".into()))?;
         let vm = vm_dir()
             .ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：缺少内核".into()))?;
-        let initramfs = initramfs_path()
-            .ok_or_else(|| AppError::Engine("内置 VM 引擎未安装：缺少 initramfs".into()))?;
+        let initramfs = require_initramfs()?;
         let bios = bios_dir(&qemu, &vm);
         // 按宿主可用内存决定虚拟机大小，并写进日志，出问题能一眼看出来。
         let memory_mb = firmforge_core::winsys::vm_memory_mb();
